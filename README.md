@@ -1,6 +1,6 @@
 # FiscalTrack
 
-Application web de **suivi des déclarations fiscales** et **mini-GED** pour **TIA INTERNATIONAL LTD**.
+Application web de **suivi des déclarations fiscales** et **mini-GED** pour **TIA INTERNATIONAL**.
 
 | Élément | Choix |
 | --- | --- |
