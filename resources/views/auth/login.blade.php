@@ -72,8 +72,6 @@
         .error-text{color:#D0333A;font-size:12px;margin-top:5px;}
         .status-text{color:#1B7F4D;font-size:13px;margin:0 0 14px;}
 
-        #identifiantField{display:none;}
-
         .btn-submit{
             width:100%;padding:12px;margin-top:8px;
             background:var(--blue);color:#fff;border:none;border-radius:10px;
@@ -110,43 +108,22 @@
 
             <div class="auth-form">
 
-                <!--if-->
-                    <p class="status-text"></p>
-                <!--endif-->
+                @if (session('status'))
+                    <p class="status-text">{{ session('status') }}</p>
+                @endif
 
-                <form method="POST" action="#">
-                    
-                    <div class="field">
-                        <label for="poste">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-                            Poste
-                        </label>
-                        <select id="poste" name="poste" onchange="toggleIdentifiant()">
-                            <option value="Administrateur">Administrateur</option>
-                            <option value="Comptable">Comptable</option>
-                            <option value="Responsable fiscal">Responsable fiscal</option>
-                        </select>
-                    </div>
-
-                    <div class="field" id="identifiantField">
-                        <label for="identifiant">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="12" r="2"/><path d="M14 10h4M14 14h4"/></svg>
-                            Numéro d'identifiant
-                        </label>
-                        <div class="password-wrap">
-                            <input type="password" id="identifiant" name="identifiant" placeholder="••••••••••••"required>
-                            <button type="button" class="toggle-eye" onclick="toggleVisibility('identifiant')">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                            </button>
-                        </div>
-                    </div>
+                <form method="POST" action="{{ route('login') }}">
+                    @csrf
 
                     <div class="field">
                         <label for="email">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
                             Email
                         </label>
-                        <input type="email" id="email" name="email" placeholder="Entrez votre email" value="" required autofocus>
+                        <input type="email" id="email" name="email" placeholder="Entrez votre email" value="{{ old('email') }}" required autofocus>
+                        @error('email')
+                            <p class="error-text">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <div class="field">
@@ -160,10 +137,12 @@
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                             </button>
                         </div>
+                        @error('password')
+                            <p class="error-text">{{ $message }}</p>
+                        @enderror
                     </div>
                     <center>
-                    <!-- <button type="submit" class="btn-submit">Se connecter</button> -->
-                    <a href="{{ route('dashboard') }}" class="btn-submit" style="text-decoration: none;">Se connecter</a>
+                        <button type="submit" class="btn-submit">Se connecter</button>
                     </center>
                 </form>
             </div>
@@ -171,23 +150,10 @@
     </div>
 
     <script>
-        function toggleIdentifiant(){
-            const poste = document.getElementById('poste').value;
-            const field = document.getElementById('identifiantField');
-            const input = document.getElementById('identifiant');
-            if(poste === 'Administrateur'){
-                field.style.display = 'block';
-            } else {
-                field.style.display = 'none';
-                input.value = ''; // on vide le champ pour ne pas l'envoyer par erreur
-            }
-        }
         function toggleVisibility(inputId){
             const input = document.getElementById(inputId);
             input.type = input.type === 'password' ? 'text' : 'password';
         }
-        // Applique l'état correct dès le chargement (utile après une erreur de validation qui recharge la page)
-        document.addEventListener('DOMContentLoaded', toggleIdentifiant);
     </script>
 </body>
 </html>
