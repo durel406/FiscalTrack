@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FiscalTrack — Tableau de bord</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <title>FiscalTrack — Tableau de bord</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -604,10 +605,10 @@ th.sticky-col{z-index:5;}
     </button>
 
     <button class="user-chip" id="userBtn">
-      <div class="avatar">ND</div>
+      <div class="avatar" id="userAvatar">{{ strtoupper(\Illuminate\Support\Str::substr($authUser['name'], 0, 2)) }}</div>
       <div class="who">
-        <div class="name">Nzouengue D.</div>
-        <div class="role" id="userRoleLabel">Administrateur</div>
+        <div class="name" id="userNameLabel">{{ $authUser['name'] }}</div>
+        <div class="role" id="userRoleLabel">{{ $authUser['role_label'] }}</div>
       </div>
       <svg style="width:14px;height:14px;color:var(--text-400)"><use href="#i-chevron"/></svg>
     </button>
@@ -626,8 +627,11 @@ th.sticky-col{z-index:5;}
       <button><svg><use href="#i-user"/></svg>Mon profil</button>
       <button><svg><use href="#i-settings"/></svg>Paramètres</button>
       <hr>
-      <button class="danger" id="logoutBtn"><svg><use href="#i-logout"/></svg>Se déconnecter</button>
+      <button class="danger" id="logoutBtn" type="button"><svg><use href="#i-logout"/></svg>Se déconnecter</button>
     </div>
+    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">
+      @csrf
+    </form>
   </header>
 
   <!-- ============ MAIN ============ -->
@@ -637,7 +641,7 @@ th.sticky-col{z-index:5;}
     <section class="section active" id="sec-dashboard">
       <div class="section-head">
         <div>
-          <h2>Bonjour, admin </h2>
+          <h2>Bonjour, {{ explode(' ', $authUser['name'])[0] }}</h2>
           <p>Voici l'état des gestions fiscal et social de TIA International Ltd aujourd'hui.</p>
         </div>
         <button class="btn btn-ghost" onclick="goTo('declarations')">Voir les déclarations</button>
@@ -1076,12 +1080,16 @@ th.sticky-col{z-index:5;}
     <div class="brand-mark"><svg><use href="#i-logo"/></svg></div>
     <h2>Vous êtes déconnecté</h2>
     <p>Votre session FiscalTrack a été fermée en toute sécurité. Reconnectez-vous pour accéder à votre espace de travail.</p>
-    <button class="btn btn-primary" style="justify-content:center;width:100%;" onclick="document.getElementById('lockOverlay').classList.remove('open')">Se reconnecter</button>
+    <a class="btn btn-primary" style="justify-content:center;width:100%;text-decoration:none;" href="{{ route('login') }}">Se reconnecter</a>
   </div>
 </div>
 
 <script>
 /* ================= DATA ================= */
+const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+const authUser = @json($authUser);
+let users = @json($initialUsers);
+
 /* Toutes ces listes sont vides par défaut : dans l'application réelle (Laravel + MySQL),
    elles seront alimentées depuis la base de données. Les exemples ont été retirés. */
 let contribuables = [];
@@ -1097,15 +1105,13 @@ let archivedDocuments = [];
 let notifications = [];
 let notifReadState = {}; // clé notif -> true si déjà lue, pour conserver l'état entre deux recalculs
 
-let users = [];
-
 const activity = [];
 
 /* Index de l'élément en cours de modification pour chaque tableau.
    null = mode "ajout" ; un nombre = mode "modification" (index réel dans le tableau source). */
 let editContribIndex = null;
 let editDocIndex = null;
-let editUserIndex = null;
+let editUserId = null;
 
 let docIdCounter = 1;
 
@@ -1237,10 +1243,10 @@ function applyRole(role){
   const roleFixed = document.querySelector('.role-fixed');
   if(roleFixed) roleFixed.textContent = roleLabels[role];
 }
-// La sélection du poste (Administrateur / Comptable / Responsable fiscal) sera fournie
-// par la page de connexion. En attendant son intégration, l'espace de travail démarre
-// directement sur le poste Administrateur (accès complet).
-applyRole('admin');
+// Rôle issu de la session Laravel
+applyRole(authUser.role || 'admin');
+document.getElementById('userNameLabel').textContent = authUser.name;
+document.getElementById('userAvatar').textContent = initials(authUser.name);
 
 document.getElementById('menuToggle').addEventListener('click', ()=>document.getElementById('sidebar').classList.toggle('open'));
 
@@ -1289,7 +1295,7 @@ document.addEventListener('click', ()=>{document.getElementById('notifDropdown')
 
 document.getElementById('logoutBtn').addEventListener('click', ()=>{
   if(confirm('Voulez-vous vraiment vous déconnecter ?')){
-    document.getElementById('lockOverlay').classList.add('open');
+    document.getElementById('logout-form').submit();
   }
 });
 
@@ -1897,13 +1903,35 @@ function resetDeclarations(){
 }
 
 /* ================= RENDER: USERS ================= */
+async function apiUsers(url, method, body){
+  const opts = {
+    method,
+    headers: {
+      'X-CSRF-TOKEN': csrfToken,
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  };
+  if(body !== undefined){
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opts);
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok){
+    const msg = data.message
+      || (data.errors && Object.values(data.errors).flat().join('\n'))
+      || 'Une erreur est survenue.';
+    throw new Error(msg);
+  }
+  return data;
+}
+
 function renderUsers(){
   const q=(document.getElementById('userSearch').value||'').toLowerCase();
-  const rows = users.filter(u=>u.nom.toLowerCase().includes(q)||u.email.toLowerCase().includes(q));
+  const rows = users.filter(u=>String(u.nom||'').toLowerCase().includes(q)||String(u.email||'').toLowerCase().includes(q));
   document.getElementById('userCount').textContent = rows.length+' compte(s) sur '+users.length;
-  document.getElementById('userTbody').innerHTML = rows.length ? rows.map(u=>{
-    const idx = users.indexOf(u);
-    return `
+  document.getElementById('userTbody').innerHTML = rows.length ? rows.map(u=>`
     <tr>
       <td><div style="display:flex;align-items:center;gap:10px;">
         <div class="avatar" style="width:30px;height:30px;font-size:11px;">${initials(u.nom)}</div>
@@ -1913,24 +1941,34 @@ function renderUsers(){
       <td>${u.role}</td>
       <td><span class="badge ${u.statut==='active'?'b-active':'b-inactive'}">${u.statut==='active'?'Actif':'Suspendu'}</span></td>
       <td><div class="row-actions">
-        <button class="mini-btn" title="Modifier" onclick="editUser(${idx})"><svg><use href="#i-edit"/></svg></button>
-        <button class="mini-btn" title="${u.statut==='active'?'Suspendre':'Réactiver'}" onclick="toggleUserStatut(${idx})"><svg><use href="#i-trash"/></svg></button>
+        <button class="mini-btn" title="Modifier" onclick="editUser(${u.id})"><svg><use href="#i-edit"/></svg></button>
+        <button class="mini-btn" title="${u.statut==='active'?'Suspendre':'Réactiver'}" onclick="toggleUserStatut(${u.id})"><svg><use href="#i-trash"/></svg></button>
       </div></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="5" class="empty">Aucun compte ne correspond à votre recherche.</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="5" class="empty">Aucun compte ne correspond à votre recherche.</td></tr>`;
 }
-function toggleUserStatut(i){
-  const u = users[i];
+async function toggleUserStatut(id){
+  const u = users.find(x=>Number(x.id)===Number(id));
+  if(!u) return;
   const verb = u.statut==='active' ? 'suspendre' : 'réactiver';
-  if(confirm(`Voulez-vous vraiment ${verb} le compte de ${u.nom} ?`)){
-    u.statut = u.statut==='active' ? 'inactive' : 'active';
+  if(!confirm(`Voulez-vous vraiment ${verb} le compte de ${u.nom} ?`)) return;
+  try{
+    const data = await apiUsers(`/users/${id}/toggle-status`, 'PATCH');
+    const idx = users.findIndex(x=>Number(x.id)===Number(id));
+    if(idx >= 0) users[idx] = data.user;
     renderUsers();
-  }
+  }catch(e){ alert(e.message); }
 }
 document.getElementById('userSearch').addEventListener('input', renderUsers);
 function resetUsers(){
   document.getElementById('userSearch').value='';
   renderUsers();
+}
+async function reloadUsers(){
+  try{
+    const data = await apiUsers('/users', 'GET');
+    users = data.users || [];
+    renderUsers();
+  }catch(e){ console.error(e); }
 }
 
 /* ================= MODALS ================= */
@@ -2038,7 +2076,7 @@ function editDocument(i){
 
 /* ---- Comptes utilisateurs : ajout / modification ---- */
 function openAddUser(){
-  editUserIndex = null;
+  editUserId = null;
   document.getElementById('f-user-nom').value='';
   document.getElementById('f-user-prenom').value='';
   document.getElementById('f-user-email').value='';
@@ -2047,15 +2085,17 @@ function openAddUser(){
   document.getElementById('f-user-statut').selectedIndex=0;
   document.getElementById('f-user-pass').value='';
   document.getElementById('f-user-pass').placeholder='••••••••';
+  document.getElementById('f-user-pass').required = true;
   document.getElementById('modalUserTitle').textContent = 'Créer un compte utilisateur';
   document.getElementById('modalUserSaveBtn').textContent = 'Créer le compte';
   openModal('modalUser');
 }
-function editUser(i){
-  editUserIndex = i;
-  const u = users[i];
+function editUser(id){
+  const u = users.find(x=>Number(x.id)===Number(id));
+  if(!u) return;
+  editUserId = u.id;
   openModal('modalUser');
-  const parts = u.nom.split(' ');
+  const parts = String(u.nom||'').trim().split(/\s+/);
   document.getElementById('f-user-prenom').value = parts.shift() || '';
   document.getElementById('f-user-nom').value = parts.join(' ');
   document.getElementById('f-user-email').value = u.email;
@@ -2063,6 +2103,7 @@ function editUser(i){
   document.getElementById('f-user-statut').value = u.statut==='active' ? 'Actif' : 'Suspendu';
   document.getElementById('f-user-pass').value='';
   document.getElementById('f-user-pass').placeholder='Laisser vide pour ne pas changer';
+  document.getElementById('f-user-pass').required = false;
   document.getElementById('modalUserTitle').textContent = 'Modifier le compte';
   document.getElementById('modalUserSaveBtn').textContent = 'Enregistrer les modifications';
 }
@@ -2211,30 +2252,39 @@ function submitDocument(){
     finalize();
   }
 }
-function submitUser(){
+async function submitUser(){
   const nom = document.getElementById('f-user-nom').value.trim();
   const prenom = document.getElementById('f-user-prenom').value.trim();
   const email = document.getElementById('f-user-email').value.trim();
+  const password = document.getElementById('f-user-pass').value;
   if(!nom || !prenom || !email){ alert('Nom, prénom et email sont obligatoires.'); return; }
-  const record = {
-    nom: prenom+' '+nom, email,
+  if(editUserId === null && !password){ alert('Le mot de passe est obligatoire pour créer un compte.'); return; }
+
+  const payload = {
+    nom, prenom, email,
     role: getSelectValue('f-user-role'),
-    statut: document.getElementById('f-user-statut').value==='Actif'?'active':'inactive'
+    statut: document.getElementById('f-user-statut').value==='Actif'?'active':'inactive',
+    password: password || null,
   };
-  const isEdit = editUserIndex !== null;
-  if(isEdit){
-    users[editUserIndex] = record;
-  } else {
-    users.unshift(record);
-  }
-  closeModal('modalUser');
-  resetUsers();
-  if(!isEdit){
-    const firstRow = document.querySelector('#userTbody tr');
-    if(firstRow) firstRow.classList.add('row-new');
-  }
-  editUserIndex = null;
-  document.getElementById('f-user-nom').value=''; document.getElementById('f-user-prenom').value=''; document.getElementById('f-user-email').value=''; document.getElementById('f-user-pass').value='';
+
+  try{
+    let data;
+    if(editUserId !== null){
+      data = await apiUsers(`/users/${editUserId}`, 'PUT', payload);
+      const idx = users.findIndex(x=>Number(x.id)===Number(editUserId));
+      if(idx >= 0) users[idx] = data.user;
+    } else {
+      data = await apiUsers('/users', 'POST', payload);
+      users.unshift(data.user);
+    }
+    closeModal('modalUser');
+    resetUsers();
+    editUserId = null;
+    document.getElementById('f-user-nom').value='';
+    document.getElementById('f-user-prenom').value='';
+    document.getElementById('f-user-email').value='';
+    document.getElementById('f-user-pass').value='';
+  }catch(e){ alert(e.message); }
 }
 
 /* ================= INIT ================= */

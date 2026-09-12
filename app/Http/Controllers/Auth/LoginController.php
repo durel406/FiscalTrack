@@ -32,6 +32,16 @@ class LoginController extends Controller
                 ->withErrors(['email' => 'Email ou mot de passe incorrect.']);
         }
 
+        if (Auth::user()->status === 'inactive') {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()
+                ->withInput($request->except('password'))
+                ->withErrors(['email' => 'Ce compte est suspendu. Contactez un administrateur.']);
+        }
+
         $request->session()->regenerate();
 
         return redirect()->intended(RouteServiceProvider::HOME);

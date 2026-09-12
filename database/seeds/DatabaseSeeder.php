@@ -11,9 +11,10 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'admin@fiscaltrack.test'],
             [
-                'name' => 'Administrateur',
+                'name' => 'Administrateur Demo',
                 'password' => Hash::make('password'),
                 'role' => 'admin',
+                'status' => 'active',
                 'identifiant' => 'ADMIN001',
             ]
         );
@@ -21,9 +22,10 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'comptable@fiscaltrack.test'],
             [
-                'name' => 'Comptable',
+                'name' => 'Comptable Demo',
                 'password' => Hash::make('password'),
                 'role' => 'comptable',
+                'status' => 'active',
                 'identifiant' => null,
             ]
         );
@@ -31,9 +33,10 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'fiscal@fiscaltrack.test'],
             [
-                'name' => 'Responsable fiscal',
+                'name' => 'Responsable Fiscal Demo',
                 'password' => Hash::make('password'),
                 'role' => 'responsable_fiscal',
+                'status' => 'active',
                 'identifiant' => null,
             ]
         );
