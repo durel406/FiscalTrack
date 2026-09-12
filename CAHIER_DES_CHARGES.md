@@ -1,10 +1,7 @@
 # Cahier des charges — FiscalTrack
 
-**Application web de suivi des déclarations fiscales et mini-GED**  
-Cabinet : **TIA INTERNATIONAL LTD**  
-Stack : **Laravel** · **AdminLTE** · **MySQL**  
-Document : reformulation du cahier des charges (Word) — août 2026
-
+**PROJET:** **conception et developpement d'une Application web de suivi des déclarations fiscales et mini-GED**  
+**FILIERE:** **GENIE LOGICIEL**
 ---
 
 ## Table des matières
