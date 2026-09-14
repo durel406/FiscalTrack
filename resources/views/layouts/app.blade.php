@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FiscalTrack — Tableau de bord</title>
+    <title>FiscalTrack — @yield('title', 'Tableau de bord')</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -130,6 +130,7 @@ input,select{font-family:inherit;}
   padding:10px 12px;margin:1px 0;border-radius:9px;
   font-size:13.5px;font-weight:500;color:rgba(255,255,255,.8);
   position:relative;transition:background .15s;
+  text-decoration:none;cursor:pointer;
 }
 .nav-item svg{width:18px;height:18px;flex:none;opacity:.85;}
 .nav-item .badge{
@@ -215,8 +216,7 @@ input,select{font-family:inherit;}
 
 /* ============ MAIN ============ */
 .main{grid-column:2;grid-row:2;overflow-y:auto;overflow-x:auto;padding:24px;}
-.section{display:none;animation:fade .25s ease;min-width:920px;}
-.section.active{display:block;}
+.section{display:block;animation:fade .25s ease;min-width:920px;}
 @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 
 .section-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:12px;flex-wrap:wrap;}
@@ -525,6 +525,8 @@ th.sticky-col{z-index:5;}
 <symbol id="i-logo" viewBox="0 0 40 40"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dff0fd"/><stop offset="1" stop-color="#7fb4f2"/></linearGradient><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6f89e8"/><stop offset="1" stop-color="#4a5fd6"/></linearGradient></defs><path d="M14 3h18c2 0 2.6 2.4 1 3.6L21 15h9c2.3 0 2.8 3 .9 4L14 24V3Z" fill="url(#g1)"/><rect x="14" y="17" width="15" height="12" rx="6" fill="url(#g2)"/></symbol>
 </svg>
 
+<body>
+
 <div class="shell">
 
   <!-- ============ SIDEBAR ============ -->
@@ -538,40 +540,40 @@ th.sticky-col{z-index:5;}
 
     <div class="role-pill">
       <span class="lbl">Connecté comme</span>
-      <span class="role-fixed">Administrateur</span>
+      <span class="role-fixed">{{ $authUser['role_label'] }}</span>
     </div>
     <fieldset style="margin-top: 10px; margin-bottom: 20px;"></fieldset>
     <nav>
       <div class="nav-group">
         <div class="nav-label">Général</div>
-        <div class="nav-item active" data-section="dashboard" data-roles="admin,comptable,fiscal">
+        <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}" data-roles="admin,comptable,fiscal">
           <svg><use href="#i-grid"/></svg><span>Tableau de bord</span>
-        </div>
+        </a>
       </div>
       <div class="nav-group">
         <div class="nav-label">Gestion</div>
-        <div class="nav-item" data-section="contribuables" data-roles="admin,comptable">
+        <a href="{{ route('contribuables.index') }}" class="nav-item {{ request()->routeIs('contribuables.*') ? 'active' : '' }}" data-roles="admin,comptable">
           <svg><use href="#i-users"/></svg><span>Contribuables</span>
-        </div>
-        <div class="nav-item" data-section="documents" data-roles="admin,comptable">
+        </a>
+        <a href="{{ route('documents.index') }}" class="nav-item {{ request()->routeIs('documents.*') ? 'active' : '' }}" data-roles="admin,comptable">
           <svg><use href="#i-folder"/></svg><span>Documents (GED)</span>
-        </div>
-        <div class="nav-item" data-section="archives" data-roles="admin,comptable">
+        </a>
+        <a href="{{ route('archives.index') }}" class="nav-item {{ request()->routeIs('archives.*') ? 'active' : '' }}" data-roles="admin,comptable">
           <svg><use href="#i-archive"/></svg><span>Archives</span>
-        </div>
-        <div class="nav-item" data-section="declarations" data-roles="admin,fiscal">
+        </a>
+        <a href="{{ route('declarations.index') }}" class="nav-item {{ request()->routeIs('declarations.*') ? 'active' : '' }}" data-roles="admin,fiscal">
           <svg><use href="#i-file"/></svg><span>Déclaration</span>
-        </div>
+        </a>
       </div>
       <div class="nav-group">
         <div class="nav-label">Suivi</div>
-        <div class="nav-item" data-section="notifications" data-roles="admin,comptable,fiscal">
+        <a href="{{ route('notifications.index') }}" class="nav-item {{ request()->routeIs('notifications.*') ? 'active' : '' }}" data-roles="admin,comptable,fiscal">
           <svg><use href="#i-bell"/></svg><span>Notifications</span>
-          <span class="badge" id="navNotifBadge">3</span>
-        </div>
-        <div class="nav-item" data-section="comptes" data-roles="admin">
+          <!-- <span class="badge" id="navNotifBadge">3</span> -->
+        </a>
+        <a href="{{ route('comptes.index') }}" class="nav-item {{ request()->routeIs('comptes.*') ? 'active' : '' }}" data-roles="admin">
           <svg><use href="#i-settings"/></svg><span>Comptes utilisateurs</span>
-        </div>
+        </a>
       </div>
     </nav>
 
@@ -587,8 +589,8 @@ th.sticky-col{z-index:5;}
   <header class="appbar">
     <button class="menu-toggle" id="menuToggle"><svg><use href="#i-menu"/></svg></button>
     <div class="appbar-title">
-      <h1 id="pageTitle">Tableau de bord</h1>
-      <div class="crumb" id="pageCrumb">FiscalTrack / Accueil</div>
+      <h1 id="pageTitle">@yield('title', 'Tableau de bord')</h1>
+      <div class="crumb" id="pageCrumb">@yield('crumb', 'FiscalTrack / Accueil')</div>
     </div>
 
     <button class="icon-btn" id="darkModeBtn" title="Mode sombre" style="margin-left:auto;">
@@ -635,443 +637,10 @@ th.sticky-col{z-index:5;}
   </header>
 
   <!-- ============ MAIN ============ -->
+
   <main class="main">
-
-    <!-- ===== DASHBOARD ===== -->
-    <section class="section active" id="sec-dashboard">
-      <div class="section-head">
-        <div>
-          <h2>Bonjour, {{ explode(' ', $authUser['name'])[0] }}</h2>
-          <p>Voici l'état des gestions fiscal et social de TIA International Ltd aujourd'hui.</p>
-        </div>
-        <button class="btn btn-ghost" onclick="goTo('declarations')">Voir les déclarations</button>
-      </div>
-
-      <div class="kpi-grid">
-        <div class="kpi">
-          <div class="top"><div class="ic tone-blue"><svg><use href="#i-users"/></svg></div></div>
-          <div class="value num" id="kpiContribuables">0</div>
-          <div class="label">Contribuables actifs</div>
-        </div>
-        <div class="kpi">
-          <div class="top"><div class="ic tone-amber"><svg><use href="#i-clock"/></svg></div></div>
-          <div class="value num" id="kpiDeclarationsEnAttente">0</div>
-          <div class="label">Déclarations en attente</div>
-        </div>
-        <div class="kpi">
-          <div class="top"><div class="ic tone-navy"><svg><use href="#i-folder"/></svg></div></div>
-          <div class="value num" id="kpiDocuments">0</div>
-          <div class="label">Documents dans la GED</div>
-        </div>
-        <div class="kpi">
-          <div class="top"><div class="ic tone-green"><svg><use href="#i-check"/></svg></div></div>
-          <div class="value num" id="kpiConformite">—</div>
-          <div class="label">Taux de conformité</div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="panel">
-          <div class="panel-head">
-            <div><h3>Échéances à venir</h3><div class="sub">Prochaines dates limites de déclaration</div></div>
-          </div>
-          <div class="timeline" id="timelineList"></div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-head">
-            <div><h3>Activité récente</h3><div class="sub">Dernières actions dans FiscalTrack</div></div>
-          </div>
-          <div class="feed" id="activityFeed"></div>
-        </div>
-      </div>
-
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-head">
-          <div><h3>Calendrier des échéances</h3><div class="sub">Mensuelle (15 du mois) · Trimestrielle (+15j fin de trimestre) · Annuelle (28 fév / 15 mars / 30 juin)</div></div>
-        </div>
-        <div class="cal-head">
-          <div class="cal-nav"><button class="mini-btn" onclick="calNav(-1)"><svg><use href="#i-chevron-left"/></svg></button></div>
-          <div class="label" id="calMonthLabel"></div>
-          <div class="cal-nav"><button class="mini-btn" onclick="calNav(1)"><svg><use href="#i-chevron-right"/></svg></button></div>
-        </div>
-        <div class="cal-dow" id="calDow"></div>
-        <div class="cal-grid" id="calendarGrid"></div>
-        <div class="cal-legend"><span><i style="background:var(--amber)"></i>Échéance à surveiller (non déclarée)</span></div>
-        <div class="cal-details" id="calendarDetails"></div>
-      </div>
-    </section>
-
-    <!-- ===== CONTRIBUABLES ===== -->
-    <section class="section" id="sec-contribuables">
-
-      <!-- vue 1 : formulaire de configuration du dossier -->
-      <div id="contribSetupView">
-        <div class="setup-wrap">
-          <div class="setup-card">
-            <!-- <div class="setup-mark"><svg><use href="#i-logo"/></svg></div> -->
-            <h2>Configurer le dossier de suivi</h2>
-            <p>Renseignez l'entreprise et l'année de suivi : FiscalTrack génère automatiquement l'entête du tableau des contribuables.</p>
-            <div class="field"><label>Nom de l'entreprise</label><input id="setupNom" placeholder="Ex : TIA INTERNATIONNAL LTD"></div>
-            <div class="field"><label>Année</label><input id="setupAnnee" type="number" placeholder="Ex : 2026" value="2026"></div>
-            <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="submitSetup()">Enregistrer</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- vue 2 : tableau du dossier -->
-      <div id="contribDossierView" style="display:none;">
-        <div class="section-head">
-          <div><h2>Contribuables</h2><p>Gestion des clients suivis par le cabinet.</p></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-ghost" onclick="backToSetup()"><svg><use href="#i-edit"/></svg>Modifier le dossier</button>
-            <button class="btn btn-primary" onclick="openAddContribuable()"><svg><use href="#i-plus"/></svg>Ajouter un contribuable</button>
-          </div>
-        </div>
-
-        <div class="table-toolbar">
-          <div class="toolbar">
-            <div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Rechercher (nom, NIU…)" id="contribSearch"></div>
-            <select class="filter-select" id="contribFilterCat"><option value="">Toutes catégories</option><option>Petite entreprise</option><option>Moyenne entreprise</option><option>Grande entreprise</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select>
-            <select class="filter-select" id="contribFilterRegime"><option value="">Tous régimes</option><option>Réel</option><option>Simplifié</option><option>Classe</option><option>IGS Classe</option><option>NON PROFESSIONNEL</option></select>
-            <button class="reset-btn" title="Réinitialiser le tableau" onclick="resetContribuables()"><svg><use href="#i-refresh"/></svg>Réinitialiser</button>
-          </div>
-          <div class="export-group">
-            <button class="export-btn pdf" onclick="exportContribuablesPDF()"><svg><use href="#i-download"/></svg>Exporter PDF</button>
-            <button class="export-btn excel" onclick="exportContribuablesExcel()"><svg><use href="#i-download"/></svg>Exporter Excel</button>
-          </div>
-        </div>
-
-        <div class="panel dossier-panel">
-          <div class="dossier-titlebar" id="dossierTitle">SUIVI DES DOSSIERS : TIA INTERNATIONNAL LTD 2026</div>
-          <div class="dossier-scroll">
-            <table class="dossier-table dossier-table-2row">
-              <thead>
-                <tr>
-                  <th rowspan="2" class="sticky-col">Contribuable</th>
-                  <th rowspan="2">NIU</th>
-                  <th rowspan="2">Régime et classe</th>
-                  <th rowspan="2">Mot de passe</th>
-                  <th rowspan="2">Montant payé</th>
-                  <th colspan="5" id="igsYearHeader">IGS 2026</th>
-                  <th rowspan="2">Impôts payé</th>
-                  <th rowspan="2">Loyer</th>
-                  <th rowspan="2">Bail</th>
-                  <th rowspan="2">Précompte</th>
-                  <th rowspan="2">Timbre</th>
-                  <th rowspan="2">Frais de paiement</th>
-                  <th colspan="2">Frais de suivi</th>
-                  <th colspan="3">Avis d'imposition</th>
-                  <th colspan="3">Quittance</th>
-                  <th colspan="3">ACF</th>
-                  <th rowspan="2">Lieu</th>
-                  <th rowspan="2">Téléphone</th>
-                  <th rowspan="2" class="sticky-col print-hide" style="left:auto;right:0;">Actions</th>
-                </tr>
-                <tr>
-                  <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>TDL</th>
-                  <th>Payé</th><th>Non payé</th>
-                  <th>IGS</th><th>Bail</th><th>Précompte</th>
-                  <th>IGS</th><th>Bail</th><th>Précompte</th>
-                  <th>IGS</th><th>Bail</th><th>Précompte</th>
-                </tr>
-              </thead>
-              <tbody id="contribTbody"></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="count-below" id="contribCount">— résultats</div>
-      </div>
-    </section>
-
-    <!-- ===== DOCUMENTS ===== -->
-    <section class="section" id="sec-documents">
-      <div class="section-head">
-        <div><h2>Documents — Mini-GED</h2><p>Factures, avis d'imposition, quittances et justificatifs centralisés.</p></div>
-        <button class="btn btn-primary" onclick="openAddDocument()"><svg><use href="#i-plus"/></svg>Ajouter un document</button>
-      </div>
-      <div class="panel">
-        <div class="panel-head">
-          <div><h3>Gestion des documents</h3></div>
-          <div class="toolbar">
-            <div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Rechercher un document…" id="docSearch"></div>
-            <select class="filter-select" id="docFilterType"><option value="">Tous les types</option><option>Avis d'imposition</option><option>Quittance</option><option>Facture</option><option>Attestation d'immatriculation</option><option>ATMP</option><option>ACS</option><option>ACF</option></select>
-            <button class="reset-btn" title="Réinitialiser le tableau" onclick="resetDocuments()"><svg><use href="#i-refresh"/></svg>Réinitialiser</button>
-          </div>
-        </div>
-        <table>
-          <thead><tr><th>Document</th><th>Contribuable</th><th>Fournisseur</th><th>Montant</th><th>Date de création</th><th>Dernière modification</th><th></th></tr></thead>
-          <tbody id="docTbody"></tbody>
-        </table>
-      </div>
-      <div class="count-below" id="docCount">— résultats</div>
-
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-head">
-          <div><h3>Documents à suivre</h3><div class="sub">Ces types de documents apparaîtront comme colonnes dans le tableau des Déclaration. Lorsqu'un document enregistré ci-dessus correspond à l'un de ces types, il est automatiquement lié au contribuable concerné.</div></div>
-        </div>
-        <div style="padding:14px 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <input type="text" id="f-trackeddoc-nom" placeholder="Ex : Avis d'imposition" style="flex:1;min-width:220px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--bg);">
-          <button class="btn btn-primary" onclick="addTrackedDocType()"><svg><use href="#i-plus"/></svg>Ajouter un document à suivre</button>
-        </div>
-        <div id="trackedDocList" style="padding:0 18px 16px;display:flex;flex-wrap:wrap;gap:8px;"></div>
-      </div>
-    </section>
-
-    <!-- ===== ARCHIVES ===== -->
-    <section class="section" id="sec-archives">
-      <div class="section-head">
-        <div><h2>Archives</h2><p>Documents archivés — restaurez-les ou supprimez-les définitivement.</p></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head">
-          <div><h3>Documents archivés</h3></div>
-          <div class="toolbar">
-            <div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Rechercher un document archivé…" id="archiveSearch"></div>
-            <button class="reset-btn" title="Réinitialiser le tableau" onclick="resetArchives()"><svg><use href="#i-refresh"/></svg>Réinitialiser</button>
-          </div>
-        </div>
-        <table>
-          <thead><tr><th>Document</th><th>Contribuable</th><th>Fournisseur</th><th>Montant</th><th>Archivé le</th><th></th></tr></thead>
-          <tbody id="archiveTbody"></tbody>
-        </table>
-      </div>
-      <div class="count-below" id="archiveCount">— résultats</div>
-    </section>
-
-    <!-- ===== DECLARATIONS ===== -->
-    <section class="section" id="sec-declarations">
-      <div class="section-head">
-        <div><h2>Déclaration</h2><p>Suivi des documents à suivre par contribuable, avec statut de déclaration.</p></div>
-      </div>
-      <div class="org-links">
-        <a class="org-link" href="https://www.impots.cm" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
-          <div class="ic"><svg><use href="#i-link"/></svg></div>
-          <div class="meta"><span>Direction Générale des Impôts (DGI)</span><span class="sub">www.impots.cm — Télédéclaration DGI</span></div>
-        </a>
-        <a class="org-link" href="https://www.cnps.cm" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
-          <div class="ic"><svg><use href="#i-link"/></svg></div>
-          <div class="meta"><span>Caisse Nationale de Prévoyance Sociale (CNPS)</span><span class="sub">www.cnps.cm — Télédéclaration CNPS</span></div>
-        </a>
-      </div>
-
-      <div class="panel" style="margin-bottom:16px;">
-        <div class="panel-head">
-          <div><h3>Échéances des documents à suivre</h3><div class="sub">Assignez une date limite à chaque document à suivre (configurés depuis l'écran Documents). Ces dates apparaissent sur le calendrier du tableau de bord.</div></div>
-        </div>
-        <div id="trackedDeadlineList" style="padding:6px 18px 16px;display:flex;flex-direction:column;gap:8px;"></div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <div><h3>Suivi par contribuable</h3></div>
-          <div class="toolbar">
-            <div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Rechercher un contribuable…" id="declSearch"></div>
-            <select class="filter-select" id="declFilterOrg"><option value="">Tous organismes</option><option>DGI</option><option>CNPS</option></select>
-            <select class="filter-select" id="declFilterStatut"><option value="">Tous les contribuables</option><option value="non_conforme">Non en règle</option><option value="conforme">En règle</option></select>
-            <button class="reset-btn" title="Réinitialiser le tableau" onclick="resetDeclarations()"><svg><use href="#i-refresh"/></svg>Réinitialiser</button>
-          </div>
-        </div>
-        <div class="dossier-scroll" style="max-height:52vh;">
-          <table class="dossier-table" style="width:max-content;min-width:100%;">
-            <thead id="declThead"></thead>
-            <tbody id="declTbody"></tbody>
-          </table>
-        </div>
-      </div>
-      <div class="count-below" id="declCount">— résultats</div>
-
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-head">
-          <div><h3>Contribuables non en règle</h3><div class="sub">Un contribuable apparaît ici dès qu'au moins un de ses documents à suivre n'est pas au statut « Déclaré ».</div></div>
-        </div>
-        <div id="complianceList" style="padding:6px 18px 16px;display:flex;flex-direction:column;gap:8px;"></div>
-      </div>
-    </section>
-
-    <!-- ===== NOTIFICATIONS ===== -->
-    <section class="section" id="sec-notifications">
-      <div class="section-head">
-        <div><h2>Notifications</h2><p>Alertes automatiques générées avant et après les dates d'échéance.</p></div>
-        <button class="btn btn-ghost" id="markAllReadSection">Tout marquer comme lu</button>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><div><h3>Toutes les alertes</h3><div class="sub">Générées par le Scheduler FiscalTrack</div></div></div>
-        <div class="notif-list" id="notifListFull" style="max-height:none;"></div>
-      </div>
-    </section>
-
-    <!-- ===== COMPTES ===== -->
-    <section class="section" id="sec-comptes">
-      <div class="section-head">
-        <div><h2>Comptes utilisateurs</h2><p>Créer et gérer les accès des membres du cabinet.</p></div>
-        <button class="btn btn-primary" onclick="openAddUser()"><svg><use href="#i-plus"/></svg>Créer un compte</button>
-      </div>
-      <div class="panel">
-        <div class="panel-head">
-          <div><h3>Membres du cabinet</h3><div class="sub" id="userCount">— résultats</div></div>
-          <div class="toolbar"><div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Rechercher un compte…" id="userSearch"></div>
-            <button class="reset-btn" title="Réinitialiser le tableau" onclick="resetUsers()"><svg><use href="#i-refresh"/></svg>Réinitialiser</button></div>
-        </div>
-        <table>
-          <thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Statut</th><th></th></tr></thead>
-          <tbody id="userTbody"></tbody>
-        </table>
-      </div>
-    </section>
-
+    @yield('content')
   </main>
-</div>
-
-<!-- ============ MODALS ============ -->
-
-<!-- Modal-Contribuable -->
-
-<div class="overlay" id="ov-modalContribuable">
-  <div class="modal">
-    <div class="modal-head"><h3 id="modalContribuableTitle">Ajouter un contribuable</h3><button class="mini-btn" onclick="closeModal('modalContribuable')"><svg><use href="#i-x"/></svg></button></div>
-    <div class="modal-body">
-      <div class="modal-subtitle">Identification</div>
-      <div class="field"><label>Nom du contribuable</label><input id="f-contrib-nom" placeholder="Ex : SARL KOUAM &amp; FILS"></div>
-      <div class="field-row">
-        <div class="field"><label>NIU</label><input id="f-contrib-niu" placeholder="M0123456789X"></div>
-        <div class="field"><label>Mot de passe</label><input id="f-contrib-pass" type="text" placeholder="Ex : Pass2026"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Régime</label><select id="f-contrib-regime"><option>Réel</option><option>Simplifié</option><option>Classe</option><option>IGS Classe</option><option>NON PROFESSIONNEL</option><option>Autres</option></select><input type="text" id="f-contrib-regime-autre" class="autre-field" placeholder="Précisez le régime" style="display:none;"></div>
-        <div class="field"><label>Catégorie / classe</label><select id="f-contrib-cat"><option>Petite entreprise</option><option>Moyenne entreprise</option><option>Grande entreprise</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>Autres</option></select><input type="text" id="f-contrib-cat-autre" class="autre-field" placeholder="Précisez la catégorie / classe" style="display:none;"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Lieu</label><input id="f-contrib-lieu" placeholder="Ex : Douala"></div>
-        <div class="field"><label>Téléphone</label><input id="f-contrib-tel" placeholder="6XX XX XX XX"></div>
-      </div>
-
-      <div class="modal-subtitle">Paiements &amp; charges</div>
-      <div class="field-row">
-        <div class="field"><label>Montant payé (FCFA)</label><input id="f-contrib-montant" type="number" placeholder="0"></div>
-        <div class="field"><label>Impôts payé (FCFA)</label><input id="f-contrib-impots" type="number" placeholder="0"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Loyer (FCFA)</label><input id="f-contrib-loyer" type="number" placeholder="0"></div>
-        <div class="field"><label>Bail (FCFA)</label><input id="f-contrib-bail" type="number" placeholder="0"></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Précompte (FCFA)</label><input id="f-contrib-precompte" type="number" placeholder="0"></div>
-        <div class="field"><label>Timbre (FCFA)</label><input id="f-contrib-timbre" type="number" placeholder="0"></div>
-      </div>
-      <div class="field"><label>Frais de paiement (FCFA)</label><input id="f-contrib-fraispaiement" type="number" placeholder="0"></div>
-
-      <div class="modal-subtitle" id="f-igs-subtitle">IGS — Trimestres &amp; TDL</div>
-      <div class="field-row-5">
-        <div class="field"><label>T1</label><input id="f-contrib-t1" type="number" placeholder="0"></div>
-        <div class="field"><label>T2</label><input id="f-contrib-t2" type="number" placeholder="0"></div>
-        <div class="field"><label>T3</label><input id="f-contrib-t3" type="number" placeholder="0"></div>
-        <div class="field"><label>T4</label><input id="f-contrib-t4" type="number" placeholder="0"></div>
-        <div class="field"><label>TDL</label><input id="f-contrib-tdl" type="number" placeholder="0"></div>
-      </div>
-
-      <div class="modal-subtitle">Frais de suivi</div>
-      <div class="field-row">
-        <div class="field"><label>Payé (FCFA)</label><input id="f-contrib-fspaye" type="number" placeholder="0"></div>
-        <div class="field"><label>Non payé (FCFA)</label><input id="f-contrib-fsnonpaye" type="number" placeholder="0"></div>
-      </div>
-
-      <div class="modal-subtitle">Avis d'imposition — dates</div>
-      <div class="field-row-3">
-        <div class="field"><label>IGS</label><input id="f-contrib-aiigs" type="date"></div>
-        <div class="field"><label>Bail</label><input id="f-contrib-aibail" type="date"></div>
-        <div class="field"><label>Précompte</label><input id="f-contrib-aiprecompte" type="date"></div>
-      </div>
-
-      <div class="modal-subtitle">Quittance — dates</div>
-      <div class="field-row-3">
-        <div class="field"><label>IGS</label><input id="f-contrib-qigs" type="date"></div>
-        <div class="field"><label>Bail</label><input id="f-contrib-qbail" type="date"></div>
-        <div class="field"><label>Précompte</label><input id="f-contrib-qprecompte" type="date"></div>
-      </div>
-
-      <div class="modal-subtitle">ACF — dates</div>
-      <div class="field-row-3">
-        <div class="field"><label>IGS</label><input id="f-contrib-acfigs" type="date"></div>
-        <div class="field"><label>Bail</label><input id="f-contrib-acfbail" type="date"></div>
-        <div class="field"><label>Précompte</label><input id="f-contrib-acfprecompte" type="date"></div>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" id="modalContribuableCancelBtn" onclick="closeModal('modalContribuable')">Annuler</button><button class="btn btn-primary" id="modalContribuableSaveBtn" onclick="submitContribuable()">Enregistrer</button></div>
-  </div>
-</div>
-
-<!-- Modal-Document -->
-
-<div class="overlay" id="ov-modalDocument">
-  <div class="modal">
-    <div class="modal-head"><h3 id="modalDocumentTitle">Ajouter un document</h3><button class="mini-btn" onclick="closeModal('modalDocument')"><svg><use href="#i-x"/></svg></button></div>
-    <div class="modal-body">
-      <div class="field"><label>Nom du document</label><input id="f-doc-nom" placeholder="Ex : Quittance IGS T3"></div>
-      <div class="field-row">
-        <div class="field"><label>Type</label><select id="f-doc-type" onchange="onDocTypeChange()"><option>Avis d'imposition</option><option>Quittance</option><option>Reçue</option><option>Facture de vente</option><option>Facture d'achat</option><option>Attestation d'immatriculation</option><option>ATMP</option><option>ACS</option><option>ACF</option><option>Autres</option></select><input type="text" id="f-doc-type-autre" class="autre-field" placeholder="Précisez le type de document" style="display:none;"></div>
-        <div class="field"><label>Contribuable associé</label><select id="f-doc-contrib"></select></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Fournisseur</label><input id="f-doc-fournisseur" placeholder="Ex : DGI Cameroun"></div>
-        <div class="field"><label id="f-doc-montant-label">Montant (FCFA)</label><input id="f-doc-montant" type="number" placeholder="0"></div>
-      </div>
-      <div class="field">
-        <label>Fichier numérique (PDF, PNG)</label>
-        <input type="file" id="f-doc-file">
-        <p id="doc-file-hint" style="display:none;font-size:11px;color:var(--text-400);margin-top:5px;">Laissez ce champ vide pour conserver le fichier déjà enregistré.</p>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('modalDocument')">Annuler</button><button class="btn btn-primary" id="modalDocumentSaveBtn" onclick="submitDocument()">Enregistrer</button></div>
-  </div>
-</div>
-
-<div class="overlay" id="ov-modalDocumentView">
-  <div class="modal">
-    <div class="modal-head"><h3>Fiche du document</h3><button class="mini-btn" onclick="closeModal('modalDocumentView')"><svg><use href="#i-x"/></svg></button></div>
-    <div class="modal-body">
-      <div class="field"><label>Nom</label><div class="cell-strong" id="fiche-doc-nom">—</div></div>
-      <div class="field-row">
-        <div class="field"><label>Type</label><div id="fiche-doc-type">—</div></div>
-        <div class="field"><label>Contribuable associé</label><div id="fiche-doc-contrib">—</div></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Fournisseur</label><div id="fiche-doc-fournisseur">—</div></div>
-        <div class="field"><label>Montant (FCFA)</label><div id="fiche-doc-montant">—</div></div>
-      </div>
-      <div class="field"><label>Date d'ajout</label><div id="fiche-doc-date">—</div></div>
-      <div class="field" id="fiche-doc-preview-wrap" style="display:none;">
-        <label>Aperçu du fichier</label>
-        <div id="fiche-doc-preview"></div>
-      </div>
-      <div class="field" id="fiche-doc-nofile" style="display:none;">
-        <div class="empty" style="padding:10px 0;">Aucun fichier numérique n'a été associé à ce document.</div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" onclick="closeModal('modalDocumentView')">Fermer</button>
-      <button class="btn btn-primary" id="fiche-doc-download-btn"><svg><use href="#i-download"/></svg>Télécharger</button>
-    </div>
-  </div>
-</div>
-
-<div class="overlay" id="ov-modalUser">
-  <div class="modal">
-    <div class="modal-head"><h3 id="modalUserTitle">Créer un compte utilisateur</h3><button class="mini-btn" onclick="closeModal('modalUser')"><svg><use href="#i-x"/></svg></button></div>
-    <div class="modal-body">
-      <div class="field-row">
-        <div class="field"><label>Nom</label><input id="f-user-nom" placeholder="Nom"></div>
-        <div class="field"><label>Prénom</label><input id="f-user-prenom" placeholder="Prénom"></div>
-      </div>
-      <div class="field"><label>Email</label><input id="f-user-email" type="email" placeholder="prenom.nom@fiscaltrack.test"></div>
-      <div class="field-row">
-        <div class="field"><label>Rôle</label><select id="f-user-role"><option>Comptable</option><option>Responsable fiscal</option><option>Administrateur</option><option>Autres</option></select><input type="text" id="f-user-role-autre" class="autre-field" placeholder="Précisez le rôle" style="display:none;"></div>
-        <div class="field"><label>Statut</label><select id="f-user-statut"><option>Actif</option><option>Suspendu</option></select></div>
-      </div>
-      <div class="field"><label>Mot de passe temporaire</label><input id="f-user-pass" type="password" placeholder="••••••••"></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal('modalUser')">Annuler</button><button class="btn btn-primary" id="modalUserSaveBtn" onclick="submitUser()">Créer le compte</button></div>
-  </div>
 </div>
 
 <!-- déconnexion -->
@@ -1084,18 +653,19 @@ th.sticky-col{z-index:5;}
   </div>
 </div>
 
+
 <script>
 /* ================= DATA ================= */
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-const authUser = @json($authUser);
-let users = @json($initialUsers);
+const authUser = @json($authUser ?? ['name'=>'Utilisateur','role'=>'admin','role_label'=>'Administrateur']);
+let users = @json($initialUsers ?? []);
 
 /* Toutes ces listes sont vides par défaut : dans l'application réelle (Laravel + MySQL),
    elles seront alimentées depuis la base de données. Les exemples ont été retirés. */
 let contribuables = [];
 
-let dossier = { nom:'TIA INTERNATIONNAL LTD', annee:2026, configured:false };
-
+let dossier ;
+// = { nom:'TIA INTERNATIONNAL LTD', annee:2026, configured:false }
 let documents = [];
 
 let archivedDocuments = [];
@@ -1186,17 +756,19 @@ function refreshNotifications(){
 const roleLabels = {admin:'Administrateur', comptable:'Comptable', fiscal:'Responsable fiscal'};
 const roleInitials = {admin:'ND', comptable:'AB', fiscal:'CE'};
 
+/* Chaque écran est désormais une vraie page Laravel : goTo() effectue une navigation
+   réelle (au lieu de basculer des <div> en JS comme à l'époque de la page unique). */
+const sectionRoutes = {
+  dashboard:     @json(route('dashboard')),
+  contribuables: @json(route('contribuables.index')),
+  documents:     @json(route('documents.index')),
+  archives:      @json(route('archives.index')),
+  declarations:  @json(route('declarations.index')),
+  notifications: @json(route('notifications.index')),
+  comptes:       @json(route('comptes.index')),
+};
 function goTo(section){
-  document.querySelectorAll('.nav-item[data-section]').forEach(el=>{
-    el.classList.toggle('active', el.dataset.section===section);
-  });
-  document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
-  document.getElementById('sec-'+section).classList.add('active');
-  const titles = {dashboard:['Tableau de bord','FiscalTrack / Accueil'],contribuables:['Contribuables','FiscalTrack / Gestion / Contribuables'],documents:['Documents (GED)','FiscalTrack / Gestion / Documents'],archives:['Archives','FiscalTrack / Gestion / Archives'],declarations:['Déclaration','FiscalTrack / Suivi / Déclaration'],notifications:['Notifications','FiscalTrack / Suivi / Notifications'],comptes:['Comptes utilisateurs','FiscalTrack / Administration / Comptes']};
-  document.getElementById('pageTitle').textContent = titles[section][0];
-  document.getElementById('pageCrumb').textContent = titles[section][1];
-  document.getElementById('sidebar').classList.remove('open');
-  if(section==='contribuables') showContribView();
+  if(sectionRoutes[section]) window.location.href = sectionRoutes[section];
 }
 
 /* ================= CONTRIBUABLES : configuration du dossier ================= */
@@ -1216,13 +788,13 @@ function renderDossierHeader(){
   document.getElementById('dossierTitle').textContent = `SUIVI DES DOSSIERS : ${dossier.nom.toUpperCase()} ${dossier.annee}`;
   document.getElementById('igsYearHeader').textContent = `IGS ${dossier.annee}`;
 }
-function submitSetup(){
-  const nom = document.getElementById('setupNom').value.trim();
+ function submitSetup(){
+   const nom = document.getElementById('setupNom').value.trim();
   const annee = document.getElementById('setupAnnee').value.trim();
-  if(!nom || !annee){ alert("Le nom de l'entreprise et l'année sont obligatoires."); return; }
-  dossier = { nom, annee, configured:true };
-  showContribView();
-}
+   if(!nom || !annee){ alert("Le nom de l'entreprise et l'année sont obligatoires."); return; }
+   dossier = { nom, annee, configured:true };
+   showContribView();
+ }
 function backToSetup(){
   dossier.configured = false;
   showContribView();
@@ -1232,16 +804,19 @@ document.querySelectorAll('.nav-item[data-section]').forEach(el=>{
 });
 
 function applyRole(role){
-  document.querySelectorAll('.nav-item[data-section]').forEach(el=>{
+  // Le nom, l'avatar et le libellé du rôle sont désormais rendus côté serveur
+  // (voir $authUser dans le layout) ; cette fonction ne fait plus que masquer
+  // les liens du menu latéral non autorisés pour le rôle de l'utilisateur connecté.
+  document.querySelectorAll('.nav-item[data-roles]').forEach(el=>{
     const allowed = el.dataset.roles.split(',');
     el.classList.toggle('hidden', !allowed.includes(role));
   });
   const active = document.querySelector('.nav-item.active');
+  // Filet de sécurité côté client uniquement : la vraie protection doit être faite
+  // par un middleware Laravel sur chaque route (voir explication en fin de réponse).
   if(active && active.classList.contains('hidden')) goTo('dashboard');
-  document.getElementById('userRoleLabel').textContent = roleLabels[role];
-  document.querySelector('.avatar').textContent = roleInitials[role];
   const roleFixed = document.querySelector('.role-fixed');
-  if(roleFixed) roleFixed.textContent = roleLabels[role];
+  if(roleFixed) roleFixed.textContent = roleLabels[role] || role;
 }
 // Rôle issu de la session Laravel
 applyRole(authUser.role || 'admin');
@@ -1313,7 +888,8 @@ function renderNotifications(){
       <div class="txt"><b>${n.title}</b><br>${n.text}<div class="when">${n.when}</div></div>
     </div>`).join('');
   document.getElementById('notifList').innerHTML = build();
-  document.getElementById('notifListFull').innerHTML = build();
+  const full = document.getElementById('notifListFull');
+  if(full) full.innerHTML = build();
 }
 function markAllRead(){
   notifications.forEach(n=>{ notifReadState[n.key]=true; });
@@ -1323,6 +899,7 @@ document.getElementById('markAllRead').addEventListener('click', markAllRead);
 document.getElementById('markAllReadSection').addEventListener('click', markAllRead);
 
 function renderTimeline(){
+  if(!document.getElementById('timelineList')) return;
   const upcoming = trackedDocTypes
     .filter(t=>t.dateLimite)
     .slice()
@@ -1353,12 +930,14 @@ function renderTimeline(){
   }).join('') : `<div class="empty" style="padding:24px 0;text-align:center;color:var(--text-400);font-size:12.5px;">Aucune échéance à venir. Assignez une date limite à un document à suivre depuis l'écran Déclaration.</div>`;
 }
 function renderFeed(){
+  if(!document.getElementById('activityFeed')) return;
   document.getElementById('activityFeed').innerHTML = activity.map(a=>`
     <div class="feed-item"><div class="feed-dot"></div>
       <div><p><b>${a.who}</b> ${a.what}</p><time>${a.when}</time></div>
     </div>`).join('');
 }
 function renderKPIs(){
+  if(!document.getElementById('kpiContribuables')) return;
   document.getElementById('kpiContribuables').textContent = contribuables.filter(c=>c.statut==='active').length;
   const allCells = [];
   contribuables.forEach(c=> trackedDocTypes.forEach(t=>{
@@ -1396,6 +975,7 @@ function getEcheancesForMonth(year, month){
   return map;
 }
 function renderCalendar(){
+  if(!document.getElementById('calendarGrid')) return;
   const year = calendarViewDate.getFullYear();
   const month = calendarViewDate.getMonth();
   const monthNames=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -1454,6 +1034,7 @@ function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('').
 function money(n){ return (n||0).toLocaleString('fr-FR'); }
 function d(v){ return v || '—'; }
 function renderContribuables(){
+  if(!document.getElementById('contribTbody')) return;
   const q = (document.getElementById('contribSearch').value||'').toLowerCase();
   const cat = document.getElementById('contribFilterCat').value;
   const regime = document.getElementById('contribFilterRegime').value;
@@ -1583,6 +1164,7 @@ function exportContribuablesPDF(){
 
 /* ================= RENDER: DOCUMENTS ================= */
 function renderDocuments(){
+  if(!document.getElementById('docTbody')) return;
   const q = (document.getElementById('docSearch').value||'').toLowerCase();
   const type = document.getElementById('docFilterType').value;
   const rows = documents.filter(d=> (d.nom.toLowerCase().includes(q)||d.contrib.toLowerCase().includes(q)) && (!type || d.type===type));
@@ -1661,6 +1243,7 @@ function resetDocuments(){
 
 /* ================= RENDER: ARCHIVES ================= */
 function renderArchives(){
+  if(!document.getElementById('archiveTbody')) return;
   const q = (document.getElementById('archiveSearch').value||'').toLowerCase();
   const rows = archivedDocuments.filter(d=> d.nom.toLowerCase().includes(q)||d.contrib.toLowerCase().includes(q));
   document.getElementById('archiveCount').textContent = rows.length+' résultat(s) sur '+archivedDocuments.length;
@@ -1705,6 +1288,7 @@ function resetArchives(){
 /* ================= RENDER: DECLARATIONS ================= */
 /* ================= DÉCLARATION : matrice contribuable × documents à suivre ================= */
 function renderDeclarations(){
+  if(!document.getElementById('declTbody')){ renderComplianceList(); return; }
   const q = (document.getElementById('declSearch').value||'').toLowerCase();
   const org = document.getElementById('declFilterOrg').value;
   const conformite = document.getElementById('declFilterStatut').value;
@@ -1928,6 +1512,7 @@ async function apiUsers(url, method, body){
 }
 
 function renderUsers(){
+  if(!document.getElementById('userTbody')) return;
   const q=(document.getElementById('userSearch').value||'').toLowerCase();
   const rows = users.filter(u=>String(u.nom||'').toLowerCase().includes(q)||String(u.email||'').toLowerCase().includes(q));
   document.getElementById('userCount').textContent = rows.length+' compte(s) sur '+users.length;
@@ -2287,9 +1872,8 @@ async function submitUser(){
   }catch(e){ alert(e.message); }
 }
 
-/* ================= INIT ================= */
-refreshNotifications(); renderTimeline(); renderFeed(); renderCalendar(); renderKPIs();
-renderContribuables(); renderDocuments(); renderArchives(); renderTrackedDocList(); renderTrackedDeadlineList(); renderDeclarations(); renderUsers();
 </script>
+
+@stack('scripts')
 </body>
 </html>

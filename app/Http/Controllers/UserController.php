@@ -10,6 +10,13 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    
+    public function page()
+{
+    return view('comptes.index', [
+        'initialUsers' => \App\User::latest()->get(), // adaptez au modèle/champs réels
+    ]);
+}
     public function __construct()
     {
         $this->middleware('auth');
