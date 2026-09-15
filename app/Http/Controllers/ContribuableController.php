@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Contribuable;
+use App\Contribuable;
 use Illuminate\Http\Request;
 
 class ContribuableController extends Controller

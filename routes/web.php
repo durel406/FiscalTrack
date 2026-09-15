@@ -11,6 +11,9 @@ Route::get('/login', 'Auth\LoginController@showLoginForm')->name('login')->middl
 Route::post('/login', 'Auth\LoginController@login')->middleware('guest');
 Route::post('/logout', 'Auth\LoginController@logout')->name('logout')->middleware('auth');
 
+Route::post('/contribuables', 'ContribuableController@store')->name('contribuables.store');
+Route::put('/contribuables/{id}', 'ContribuableController@update')->name('contribuables.update');
+Route::delete('/contribuables/{id}', 'ContribuableController@destroy')->name('contribuables.destroy');
 Route::post('/dossier-suivi/enregistrer', [DossierSuiviController::class, 'store'])
     ->name('dossier-suivi.store');
 /*
@@ -74,6 +77,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', function () {
         return view('dashboard', [
             'authUser' => fiscaltrackAuthUser(),
+            'initialContribuables' => \App\Contribuable::latest()->get()
         ]);
     })->name('dashboard');
 
@@ -81,7 +85,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/contribuables', function () {
         return view('contribuables.index', [
             'authUser' => fiscaltrackAuthUser(),
-            'initialContribuables' => [], // à remplacer par \App\Contribuable::latest()->get() une fois le modèle créé
+            'initialContribuables' => \App\Contribuable::latest()->get(), // à remplacer par \App\Contribuable::latest()->get() une fois le modèle créé
         ]);
     })->name('contribuables.index');
 
@@ -89,6 +93,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/documents', function () {
         return view('documents.index', [
             'authUser' => fiscaltrackAuthUser(),
+            'initialContribuables' => \App\Contribuable::latest()->get(),
         ]);
     })->name('documents.index');
 

@@ -662,10 +662,9 @@ let users = @json($initialUsers ?? []);
 
 /* Toutes ces listes sont vides par défaut : dans l'application réelle (Laravel + MySQL),
    elles seront alimentées depuis la base de données. Les exemples ont été retirés. */
-let contribuables = [];
+   let contribuables = (@json($initialContribuables ?? [])).map(normalizeContrib);
+let dossier = { nom:'TIA INTERNATIONNAL LTD', annee:2026, configured:false };
 
-let dossier ;
-// = { nom:'TIA INTERNATIONNAL LTD', annee:2026, configured:false }
 let documents = [];
 
 let archivedDocuments = [];
@@ -696,6 +695,11 @@ let contribOrganisme = {};
 /* Statut de chaque intersection (contribuable × document à suivre).
    clé = "NomContribuable||NomDocument" -> { statut: 'declare' | 'non_declare' | 'penalite' } */
 let docStatusMatrix = {};
+
+/* Lien de vérification (site DGI ou CNPS) propre à chaque contribuable, saisi dans
+   l'écran Déclaration. Non modifiable tant qu'aucun document à suivre n'a été enregistré
+   pour ce contribuable. clé = nom du contribuable -> URL (string). */
+let contribVerifLink = {};
 
 /* ================= MOTEUR D'ÉCHÉANCES & NOTIFICATIONS ==================
    Règles métier :
@@ -788,13 +792,13 @@ function renderDossierHeader(){
   document.getElementById('dossierTitle').textContent = `SUIVI DES DOSSIERS : ${dossier.nom.toUpperCase()} ${dossier.annee}`;
   document.getElementById('igsYearHeader').textContent = `IGS ${dossier.annee}`;
 }
- function submitSetup(){
-   const nom = document.getElementById('setupNom').value.trim();
+function submitSetup(){
+  const nom = document.getElementById('setupNom').value.trim();
   const annee = document.getElementById('setupAnnee').value.trim();
-   if(!nom || !annee){ alert("Le nom de l'entreprise et l'année sont obligatoires."); return; }
-   dossier = { nom, annee, configured:true };
-   showContribView();
- }
+  if(!nom || !annee){ alert("Le nom de l'entreprise et l'année sont obligatoires."); return; }
+  dossier = { nom, annee, configured:true };
+  showContribView();
+}
 function backToSetup(){
   dossier.configured = false;
   showContribView();
@@ -1039,7 +1043,7 @@ function renderContribuables(){
   const cat = document.getElementById('contribFilterCat').value;
   const regime = document.getElementById('contribFilterRegime').value;
   const rows = contribuables.filter(c=>
-    (c.nom.toLowerCase().includes(q) || c.niu.toLowerCase().includes(q)) &&
+  ((c.nom||'').toLowerCase().includes(q) || (c.niu||'').toLowerCase().includes(q)) &&
     (!cat || c.cat===cat) && (!regime || c.regime===regime)
   );
   document.getElementById('contribCount').textContent = rows.length+' résultat(s) sur '+contribuables.length;
@@ -1086,8 +1090,14 @@ function renderContribuables(){
     </tr>`;
   }).join('') : `<tr><td colspan="30" class="empty">Aucun contribuable ne correspond à votre recherche. Cliquez sur « Ajouter un contribuable » pour commencer.</td></tr>`;
 }
-function deleteContribuable(i){
-  if(confirm('Supprimer ce contribuable du dossier ?')){ contribuables.splice(i,1); renderContribuables(); renderKPIs(); }
+async function deleteContribuable(i){
+  if(!confirm('Supprimer ce contribuable du dossier ?')) return;
+  try{
+    await apiUsers(`/contribuables/${contribuables[i].id}`, 'DELETE');
+    contribuables.splice(i,1);
+    renderContribuables();
+    renderKPIs();
+  }catch(e){ alert(e.message); }
 }
 function resetContribuables(){
   document.getElementById('contribSearch').value='';
@@ -1317,18 +1327,19 @@ function renderDeclarations(){
   const theadHtml = `<tr>
     <th class="sticky-col">Contribuable</th>
     <th>Organisme</th>
+    <th>Vérification</th>
     ${trackedDocTypes.map(t=>`<th>${t.nom}</th>`).join('')}
   </tr>`;
   document.getElementById('declThead').innerHTML = theadHtml;
 
   if(!contribuables.length){
-    const colspan = 2+trackedDocTypes.length;
+    const colspan = 3+trackedDocTypes.length;
     document.getElementById('declTbody').innerHTML = `<tr><td colspan="${colspan}" class="empty">Aucun contribuable enregistré. Ajoutez-en depuis l'écran Contribuables.</td></tr>`;
     renderComplianceList();
     return;
   }
   if(!rows.length){
-    const colspan = 2+trackedDocTypes.length;
+    const colspan = 3+trackedDocTypes.length;
     document.getElementById('declTbody').innerHTML = `<tr><td colspan="${colspan}" class="empty">Aucun contribuable ne correspond à votre recherche.</td></tr>`;
     renderComplianceList();
     return;
@@ -1353,14 +1364,55 @@ function renderDeclarations(){
         </select>
       </td>`;
     }).join('');
+    const nameEscOuter = c.nom.replace(/'/g,"\\'");
+    const linked = hasTrackedDocLinked(c.nom);
+    const verifUrl = contribVerifLink[c.nom] || '';
+    const verifCell = linked ? `
+      <div class="row-actions" style="justify-content:flex-start;">
+        <button class="mini-btn ${verifUrl?'mini-btn-active':''}" title="${verifUrl?'Ouvrir le lien de vérification':'Aucun lien enregistré'}" onclick="openVerifLink('${nameEscOuter}')"><svg><use href="#i-link"/></svg></button>
+        <button class="mini-btn" title="${verifUrl?'Modifier le lien':'Enregistrer le lien'} de vérification" onclick="editVerifLink('${nameEscOuter}')"><svg><use href="#i-edit"/></svg></button>
+      </div>` : `<span style="font-size:11.5px;color:var(--text-400);" title="Enregistrez d'abord un document à suivre pour ce contribuable">—</span>`;
     return `<tr>
       <td class="cell-strong sticky-col">${c.nom}</td>
       <td>${orgSelect}</td>
+      <td>${verifCell}</td>
       ${cellsHtml}
     </tr>`;
   }).join('');
 
   renderComplianceList();
+}
+
+/* ---- Lien de vérification (DGI/CNPS) par contribuable ---- */
+function hasTrackedDocLinked(contribNom){
+  return trackedDocTypes.some(t=>computeCellStatut(contribNom, t.nom)!=='aucun');
+}
+function suggestedVerifUrl(contribNom){
+  const org = contribOrganisme[contribNom];
+  if(org==='DGI') return 'https://www.impots.cm';
+  if(org==='CNPS') return 'https://www.cnps.cm';
+  return 'https://';
+}
+function editVerifLink(contribNom){
+  if(!hasTrackedDocLinked(contribNom)){
+    alert("Enregistrez d'abord un document à suivre pour ce contribuable (écran Documents) avant d'ajouter son lien de vérification.");
+    return;
+  }
+  const current = contribVerifLink[contribNom] || suggestedVerifUrl(contribNom);
+  const url = prompt(`Lien de vérification pour ${contribNom} (site DGI ou CNPS) :`, current);
+  if(url === null) return; // annulé
+  const trimmed = url.trim();
+  if(!trimmed){ delete contribVerifLink[contribNom]; }
+  else { contribVerifLink[contribNom] = trimmed; }
+  renderDeclarations();
+}
+function openVerifLink(contribNom){
+  const url = contribVerifLink[contribNom];
+  if(!url){
+    alert("Aucun lien de vérification enregistré pour ce contribuable. Cliquez sur le crayon pour en ajouter un.");
+    return;
+  }
+  window.open(url, '_blank', 'noopener');
 }
 
 /* ---- Organisme par contribuable ---- */
@@ -1573,23 +1625,23 @@ function fillContribForm(c){
   document.getElementById('f-contrib-bail').value = c.bail||'';
   document.getElementById('f-contrib-precompte').value = c.precompte||'';
   document.getElementById('f-contrib-timbre').value = c.timbre||'';
-  document.getElementById('f-contrib-fraispaiement').value = c.fraisPaiement||'';
+  document.getElementById('f-contrib-fraispaiement').value = c.frais_paiement||'';
   document.getElementById('f-contrib-t1').value = c.t1||'';
   document.getElementById('f-contrib-t2').value = c.t2||'';
   document.getElementById('f-contrib-t3').value = c.t3||'';
   document.getElementById('f-contrib-t4').value = c.t4||'';
   document.getElementById('f-contrib-tdl').value = c.tdl||'';
-  document.getElementById('f-contrib-fspaye').value = c.fsPaye||'';
-  document.getElementById('f-contrib-fsnonpaye').value = c.fsNonPaye||'';
-  document.getElementById('f-contrib-aiigs').value = c.aiIgs||'';
-  document.getElementById('f-contrib-aibail').value = c.aiBail||'';
-  document.getElementById('f-contrib-aiprecompte').value = c.aiPrecompte||'';
-  document.getElementById('f-contrib-qigs').value = c.qIgs||'';
-  document.getElementById('f-contrib-qbail').value = c.qBail||'';
-  document.getElementById('f-contrib-qprecompte').value = c.qPrecompte||'';
-  document.getElementById('f-contrib-acfigs').value = c.acfIgs||'';
-  document.getElementById('f-contrib-acfbail').value = c.acfBail||'';
-  document.getElementById('f-contrib-acfprecompte').value = c.acfPrecompte||'';
+  document.getElementById('f-contrib-fspaye').value = c.fs_paye||'';
+  document.getElementById('f-contrib-fsnonpaye').value = c.fs_non_paye||'';
+  document.getElementById('f-contrib-aiigs').value = c.ai_igs||'';
+  document.getElementById('f-contrib-aibail').value = c.ai_bail||'';
+  document.getElementById('f-contrib-aiprecompte').value = c.ai_precompte||'';
+  document.getElementById('f-contrib-qigs').value = c.q_igs||'';
+  document.getElementById('f-contrib-qbail').value = c.q_bail||'';
+  document.getElementById('f-contrib-qprecompte').value = c.q_precompte||'';
+  document.getElementById('f-contrib-acfigs').value = c.acf_igs||'';
+  document.getElementById('f-contrib-acfbail').value = c.acf_bail||'';
+  document.getElementById('f-contrib-acfprecompte').value = c.acf_precompte||'';
 }
 function clearContribForm(){
   document.querySelectorAll('#ov-modalContribuable input').forEach(inp=>inp.value='');
@@ -1753,7 +1805,21 @@ function onDocTypeChange(){
   const type = getSelectValue('f-doc-type');
   document.getElementById('f-doc-montant-label').textContent = type ? `Montant — ${type} (FCFA)` : 'Montant (FCFA)';
 }
-function submitContribuable(){
+
+function normalizeContrib(d){
+  if(d && d.contribuable) d = d.contribuable;   // ✅ déballe si la réponse est enveloppée
+  return {
+    id: d.id, nom: d.nom, niu: d.niu, regime: d.regime, cat: d.cat, statut: d.statut || 'active', pass: d.pass,
+    montant: d.montant, t1: d.t1, t2: d.t2, t3: d.t3, t4: d.t4, tdl: d.tdl,
+    impots: d.impots, loyer: d.loyer, bail: d.bail, precompte: d.precompte, timbre: d.timbre,
+    fraisPaiement: d.frais_paiement, fsPaye: d.fs_paye, fsNonPaye: d.fs_non_paye,
+    aiIgs: d.ai_igs, aiBail: d.ai_bail, aiPrecompte: d.ai_precompte,
+    qIgs: d.q_igs, qBail: d.q_bail, qPrecompte: d.q_precompte,
+    acfIgs: d.acf_igs, acfBail: d.acf_bail, acfPrecompte: d.acf_precompte,
+    lieu: d.lieu, tel: d.tel,
+  };
+}
+async function submitContribuable(){
   const nom = fv('f-contrib-nom').trim();
   if(!nom){ alert('Le nom du contribuable est obligatoire.'); return; }
   const record = {
@@ -1764,29 +1830,35 @@ function submitContribuable(){
     montant: fn('f-contrib-montant'),
     t1: fn('f-contrib-t1'), t2: fn('f-contrib-t2'), t3: fn('f-contrib-t3'), t4: fn('f-contrib-t4'), tdl: fn('f-contrib-tdl'),
     impots: fn('f-contrib-impots'), loyer: fn('f-contrib-loyer'), bail: fn('f-contrib-bail'),
-    precompte: fn('f-contrib-precompte'), timbre: fn('f-contrib-timbre'), fraisPaiement: fn('f-contrib-fraispaiement'),
-    fsPaye: fn('f-contrib-fspaye'), fsNonPaye: fn('f-contrib-fsnonpaye'),
-    aiIgs: fv('f-contrib-aiigs'), aiBail: fv('f-contrib-aibail'), aiPrecompte: fv('f-contrib-aiprecompte'),
-    qIgs: fv('f-contrib-qigs'), qBail: fv('f-contrib-qbail'), qPrecompte: fv('f-contrib-qprecompte'),
-    acfIgs: fv('f-contrib-acfigs'), acfBail: fv('f-contrib-acfbail'), acfPrecompte: fv('f-contrib-acfprecompte'),
+    precompte: fn('f-contrib-precompte'), timbre: fn('f-contrib-timbre'),
+    frais_paiement: fn('f-contrib-fraispaiement'),
+    fs_paye: fn('f-contrib-fspaye'), fs_non_paye: fn('f-contrib-fsnonpaye'),
+    ai_igs: fv('f-contrib-aiigs')||null, ai_bail: fv('f-contrib-aibail')||null, ai_precompte: fv('f-contrib-aiprecompte')||null,
+    q_igs: fv('f-contrib-qigs')||null, q_bail: fv('f-contrib-qbail')||null, q_precompte: fv('f-contrib-qprecompte')||null,
+    acf_igs: fv('f-contrib-acfigs')||null, acf_bail: fv('f-contrib-acfbail')||null, acf_precompte: fv('f-contrib-acfprecompte')||null,
     lieu: fv('f-contrib-lieu')||'—', tel: fv('f-contrib-tel')||'—'
   };
   const isEdit = editContribIndex !== null;
-  if(isEdit){
-    contribuables[editContribIndex] = record;
-  } else {
-    contribuables.unshift(record);
-  }
-  closeModal('modalContribuable');
-  resetContribuables();
-  renderKPIs();
-  if(!isEdit){
-    const firstRow = document.querySelector('#contribTbody tr');
-    if(firstRow) firstRow.classList.add('row-new');
-    document.querySelector('.dossier-scroll').scrollTo({top:0,left:0});
-  }
-  editContribIndex = null;
-  clearContribForm();
+  try{
+    let saved;
+    if(isEdit){
+  saved = await apiUsers(`/contribuables/${contribuables[editContribIndex].id}`, 'PUT', record);
+  contribuables[editContribIndex] = normalizeContrib(saved);   // ✅ au lieu de "= saved"
+} else {
+  saved = await apiUsers('/contribuables', 'POST', record);
+  contribuables.unshift(normalizeContrib(saved));              // ✅ au lieu de "unshift(saved)"
+}
+    closeModal('modalContribuable');
+    resetContribuables();
+    renderKPIs();
+    if(!isEdit){
+      const firstRow = document.querySelector('#contribTbody tr');
+      if(firstRow) firstRow.classList.add('row-new');
+      document.querySelector('.dossier-scroll').scrollTo({top:0,left:0});
+    }
+    editContribIndex = null;
+    clearContribForm();
+  }catch(e){ alert(e.message); }
 }
 function submitDocument(){
   const nom = document.getElementById('f-doc-nom').value.trim();
@@ -1871,6 +1943,8 @@ async function submitUser(){
     document.getElementById('f-user-pass').value='';
   }catch(e){ alert(e.message); }
 }
+
+
 
 </script>
 
