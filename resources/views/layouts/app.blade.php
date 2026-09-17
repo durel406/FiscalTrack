@@ -665,9 +665,9 @@ let users = @json($initialUsers ?? []);
    let contribuables = (@json($initialContribuables ?? [])).map(normalizeContrib);
 let dossier = { nom:'TIA INTERNATIONNAL LTD', annee:2026, configured:false };
 
-let documents = [];
+let documents = @json($initialDocuments ?? []);
 
-let archivedDocuments = [];
+let archivedDocuments = @json($initialArchives ?? []);
 
 /* notifications est reconstruit dynamiquement par le moteur de notifications
    (voir refreshNotifications) à partir des échéances des documents à suivre */
@@ -682,20 +682,25 @@ let editContribIndex = null;
 let editDocIndex = null;
 let editUserId = null;
 
-let docIdCounter = 1;
+// let docIdCounter = 1;
 
 /* ---- Suivi des déclarations par documents à suivre ---- */
 /* Liste des types de documents à suivre, configurée depuis l'écran Documents.
    Chaque entrée : { nom, dateLimite } — dateLimite assignée depuis l'écran Déclaration. */
-let trackedDocTypes = [];
+   let trackedDocTypes = (@json($initialTrackedDocTypes ?? [])).map(function(t){
+      return { id: t.id, nom: t.nom,
+               dateLimite: t.date_limite ? new Date(t.date_limite + 'T00:00:00') : null };
+    });
 
 /* Organisme rattaché à chaque contribuable dans le tableau des Déclaration. clé = nom du contribuable. */
-let contribOrganisme = {};
+// let contribOrganisme = {};
 
 /* Statut de chaque intersection (contribuable × document à suivre).
    clé = "NomContribuable||NomDocument" -> { statut: 'declare' | 'non_declare' | 'penalite' } */
-let docStatusMatrix = {};
-
+   let docStatusMatrix = {};
+    (@json($initialDeclarationStatuts ?? [])).forEach(function(d){
+      docStatusMatrix[d.contribuable_id + '||' + d.tracked_doc_type_id] = { statut: d.statut };
+    });
 /* Lien de vérification (site DGI ou CNPS) propre à chaque contribuable, saisi dans
    l'écran Déclaration. Non modifiable tant qu'aucun document à suivre n'a été enregistré
    pour ce contribuable. clé = nom du contribuable -> URL (string). */
@@ -1023,11 +1028,11 @@ function badgeClass(s){return {non_declare:'b-todo',declare:'b-done',penalite:'b
 /* Statut effectif d'une cellule (contribuable × document à suivre) :
    "aucun" si le contribuable n'a pas ce document, "Déclaré" s'il a été marqué comme tel,
    sinon "Pénalité" dès que la date limite du document est dépassée, "Non déclaré" par défaut. */
-function computeCellStatut(contribNom, docTypeNom){
-  const entry = docStatusMatrix[contribNom+'||'+docTypeNom];
+   function computeCellStatut(contribId, docTypeId){
+  const entry = docStatusMatrix[contribId+'||'+docTypeId];
   if(!entry) return 'aucun';
   if(entry.statut === 'declare') return 'declare';
-  const type = trackedDocTypes.find(t=>t.nom===docTypeNom);
+  const type = trackedDocTypes.find(t=>t.id===docTypeId);
   if(type && type.dateLimite && startOfDay(type.dateLimite) < startOfDay(new Date())) return 'penalite';
   return 'non_declare';
 }
@@ -1197,15 +1202,16 @@ function renderDocuments(){
     </tr>`;
   }).join('') : `<tr><td colspan="7" class="empty">Aucun document ne correspond à votre recherche.</td></tr>`;
 }
-function archiveDocument(i){
-  if(confirm('Archiver ce document ?')){
-    const [doc] = documents.splice(i,1);
-    doc.archivedDate = new Date().toLocaleDateString('fr-FR');
-    archivedDocuments.unshift(doc);
+async function archiveDocument(i){
+  if(!confirm('Archiver ce document ?')) return;
+  try{
+    const data = await apiUsers(`/documents/${documents[i].id}/archive`, 'PATCH');
+    documents.splice(i,1);
+    archivedDocuments.unshift(data.document);
     renderDocuments();
     renderArchives();
     renderKPIs();
-  }
+  }catch(e){ alert(e.message); }
 }
 let ficheDocIndex = null;
 function viewDocument(i){
@@ -1220,12 +1226,12 @@ function viewDocument(i){
   const previewWrap = document.getElementById('fiche-doc-preview-wrap');
   const preview = document.getElementById('fiche-doc-preview');
   const noFile = document.getElementById('fiche-doc-nofile');
-  if(d.fileDataUrl && d.fileDataUrl.startsWith('data:image')){
+  if(d.fileUrl && (d.fileMime||'').startsWith('image')){
     previewWrap.style.display=''; noFile.style.display='none';
-    preview.innerHTML = `<img src="${d.fileDataUrl}" style="max-width:100%;border-radius:8px;border:1px solid var(--line);">`;
-  } else if(d.fileDataUrl){
+    preview.innerHTML = `<img src="${d.fileUrl}" style="max-width:100%;border-radius:8px;border:1px solid var(--line);">`;
+  } else if(d.fileUrl){
     previewWrap.style.display=''; noFile.style.display='none';
-    preview.innerHTML = `<div class="empty" style="padding:10px 0;">${d.fileName||'Fichier'} (aperçu non disponible pour ce type de fichier — utilisez Télécharger)</div>`;
+    preview.innerHTML = `<embed src="${d.fileUrl}" type="${d.fileMime||'application/pdf'}" style="width:100%;height:420px;border-radius:8px;border:1px solid var(--line);">`;
   } else {
     previewWrap.style.display='none'; noFile.style.display='';
   }
@@ -1234,9 +1240,9 @@ function viewDocument(i){
 document.getElementById('fiche-doc-download-btn').addEventListener('click', ()=>{
   if(ficheDocIndex===null) return;
   const d = documents[ficheDocIndex];
-  if(d.fileDataUrl){
+  if(d.fileUrl){
     const a = document.createElement('a');
-    a.href = d.fileDataUrl;
+    a.href = d.fileUrl;
     a.download = d.fileName || d.nom;
     document.body.appendChild(a); a.click(); a.remove();
   } else {
@@ -1273,21 +1279,25 @@ function renderArchives(){
     </tr>`;
   }).join('') : `<tr><td colspan="6" class="empty">Aucun document archivé.</td></tr>`;
 }
-function restoreDocument(i){
-  if(confirm('Restaurer ce document dans la liste des documents ?')){
-    const [doc] = archivedDocuments.splice(i,1);
-    delete doc.archivedDate;
-    documents.unshift(doc);
+async function restoreDocument(i){
+  if(!confirm('Restaurer ce document dans la liste des documents ?')) return;
+  try{
+    const data = await apiUsers(`/documents/${archivedDocuments[i].id}/restore`, 'PATCH');
+    archivedDocuments.splice(i,1);
+    documents.unshift(data.document);
     renderArchives();
     renderDocuments();
     renderKPIs();
-  }
+  }catch(e){ alert(e.message); }
 }
-function deleteArchivedDocument(i){
-  if(confirm('Supprimer définitivement ce document ? Cette action est irréversible.')){
+ 
+async function deleteArchivedDocument(i){
+  if(!confirm('Supprimer définitivement ce document ? Cette action est irréversible.')) return;
+  try{
+    await apiUsers(`/documents/${archivedDocuments[i].id}`, 'DELETE');
     archivedDocuments.splice(i,1);
     renderArchives();
-  }
+  }catch(e){ alert(e.message); }
 }
 document.getElementById('archiveSearch').addEventListener('input', renderArchives);
 function resetArchives(){
@@ -1304,17 +1314,15 @@ function renderDeclarations(){
   const conformite = document.getElementById('declFilterStatut').value;
 
   const isConforme = (c)=>{
-    const linked = trackedDocTypes.map(t=>computeCellStatut(c.nom, t.nom)).filter(s=>s!=='aucun');
+    const linked = trackedDocTypes.map(t=> computeCellStatut(c.id, t.id)).filter(s=>s!=='aucun');
     if(!linked.length) return true; // rien à suivre = pas "non en règle"
     return linked.every(s=>s==='declare');
   };
 
   let rows = contribuables.filter(c=>{
     if(!c.nom.toLowerCase().includes(q)) return false;
-    if(org){
-      const orgVal = contribOrganisme[c.nom] || '';
-      if(orgVal !== org) return false;
-    }
+    if(org && (c.organisme||'') !== org) return false;
+    
     if(conformite==='conforme' && !isConforme(c)) return false;
     if(conformite==='non_conforme' && isConforme(c)) return false;
     return true;
@@ -1346,17 +1354,17 @@ function renderDeclarations(){
   }
 
   document.getElementById('declTbody').innerHTML = rows.map(c=>{
-    const orgVal = contribOrganisme[c.nom] || '';
-    const orgSelect = `<select class="inline-select" onchange="updateContribOrganisme('${c.nom.replace(/'/g,"\\'")}', this.value)">
+    const orgVal = c.organisme || '';
+    const orgSelect = `<select class="inline-select" onchange="updateContribOrganisme(${c.id}, this.value)">
       <option value="" ${!orgVal?'selected':''}>—</option>
       ${orgOptions.map(o=>`<option value="${o}" ${orgVal===o?'selected':(orgVal && !orgOptions.includes(orgVal) && o==='Autres'?'selected':'')}>${o}</option>`).join('')}
     </select>`;
     const cellsHtml = trackedDocTypes.map(t=>{
-      const statut = computeCellStatut(c.nom, t.nom);
+      const statut = computeCellStatut(c.id, t.id);
       const nameEsc = c.nom.replace(/'/g,"\\'");
       const typeEsc = t.nom.replace(/'/g,"\\'");
       return `<td>
-        <select class="inline-select statut-select statut-${statut}" onchange="updateCellStatut('${nameEsc}','${typeEsc}', this.value)">
+        <select class="inline-select statut-select statut-${statut}" onchange="updateCellStatut(${c.id}, ${t.id}, this.value)">
           <option value="aucun" ${statut==='aucun'?'selected':''}>Aucun</option>
           <option value="non_declare" ${statut==='non_declare'?'selected':''}>Non déclaré</option>
           <option value="declare" ${statut==='declare'?'selected':''}>Déclaré</option>
@@ -1365,12 +1373,12 @@ function renderDeclarations(){
       </td>`;
     }).join('');
     const nameEscOuter = c.nom.replace(/'/g,"\\'");
-    const linked = hasTrackedDocLinked(c.nom);
-    const verifUrl = contribVerifLink[c.nom] || '';
+    const linked = hasTrackedDocLinked(c.id);
+    const verifUrl = c.lien_verification || '';
     const verifCell = linked ? `
       <div class="row-actions" style="justify-content:flex-start;">
-        <button class="mini-btn ${verifUrl?'mini-btn-active':''}" title="${verifUrl?'Ouvrir le lien de vérification':'Aucun lien enregistré'}" onclick="openVerifLink('${nameEscOuter}')"><svg><use href="#i-link"/></svg></button>
-        <button class="mini-btn" title="${verifUrl?'Modifier le lien':'Enregistrer le lien'} de vérification" onclick="editVerifLink('${nameEscOuter}')"><svg><use href="#i-edit"/></svg></button>
+        <button class="mini-btn ${verifUrl?'mini-btn-active':''}" title="${verifUrl?'Ouvrir le lien de vérification':'Aucun lien enregistré'}"onclick="openVerifLink(${c.id})""><svg><use href="#i-link"/></svg></button>
+        <button class="mini-btn" title="${verifUrl?'Modifier le lien':'Enregistrer le lien'} de vérification"onclick="editVerifLink(${c.id})""><svg><use href="#i-edit"/></svg></button>
       </div>` : `<span style="font-size:11.5px;color:var(--text-400);" title="Enregistrez d'abord un document à suivre pour ce contribuable">—</span>`;
     return `<tr>
       <td class="cell-strong sticky-col">${c.nom}</td>
@@ -1384,128 +1392,126 @@ function renderDeclarations(){
 }
 
 /* ---- Lien de vérification (DGI/CNPS) par contribuable ---- */
-function hasTrackedDocLinked(contribNom){
-  return trackedDocTypes.some(t=>computeCellStatut(contribNom, t.nom)!=='aucun');
+function hasTrackedDocLinked(contribId){
+  return trackedDocTypes.some(t=>computeCellStatut(contribId, t.id)!=='aucun');
 }
-function suggestedVerifUrl(contribNom){
-  const org = contribOrganisme[contribNom];
-  if(org==='DGI') return 'https://www.impots.cm';
-  if(org==='CNPS') return 'https://www.cnps.cm';
+function suggestedVerifUrl(contribId){
+  const c = findContrib(contribId) || {};
+  if(c.organisme==='DGI') return 'https://www.impots.cm';
+  if(c.organisme==='CNPS') return 'https://www.cnps.cm';
   return 'https://';
 }
-function editVerifLink(contribNom){
-  if(!hasTrackedDocLinked(contribNom)){
-    alert("Enregistrez d'abord un document à suivre pour ce contribuable (écran Documents) avant d'ajouter son lien de vérification.");
+async function editVerifLink(contribId){
+  if(!hasTrackedDocLinked(contribId)){
+    alert("Enregistrez d'abord un document à suivre pour ce contribuable.");
     return;
   }
-  const current = contribVerifLink[contribNom] || suggestedVerifUrl(contribNom);
-  const url = prompt(`Lien de vérification pour ${contribNom} (site DGI ou CNPS) :`, current);
-  if(url === null) return; // annulé
-  const trimmed = url.trim();
-  if(!trimmed){ delete contribVerifLink[contribNom]; }
-  else { contribVerifLink[contribNom] = trimmed; }
-  renderDeclarations();
+  const c = findContrib(contribId);
+  const current = c.lien_verification || suggestedVerifUrl(contribId);
+  const url = prompt(`Lien de vérification pour ${c.nom} (site DGI ou CNPS) :`, current);
+  if(url === null) return;
+  try{
+    const data = await apiUsers(`/contribuables/${contribId}/lien-verification`, 'PATCH',
+      { lien_verification: url.trim() || null });
+    c.lien_verification = data.contribuable.lien_verification;
+    renderDeclarations();
+  }catch(e){ alert(e.message); }
 }
-function openVerifLink(contribNom){
-  const url = contribVerifLink[contribNom];
-  if(!url){
-    alert("Aucun lien de vérification enregistré pour ce contribuable. Cliquez sur le crayon pour en ajouter un.");
-    return;
-  }
+function openVerifLink(contribId){
+  const c = findContrib(contribId);
+  const url = c && c.lien_verification;
+  if(!url){ alert("Aucun lien de vérification enregistré. Cliquez sur le crayon pour en ajouter un."); return; }
   window.open(url, '_blank', 'noopener');
 }
 
 /* ---- Organisme par contribuable ---- */
-function updateContribOrganisme(contribNom, value){
+async function updateContribOrganisme(contribId, value){
+  const c = findContrib(contribId);
+  let finalValue = value;
   if(value==='Autres'){
-    const custom = prompt('Précisez l\'organisme :', (contribOrganisme[contribNom] && !['DGI','CNPS'].includes(contribOrganisme[contribNom])) ? contribOrganisme[contribNom] : '');
-    contribOrganisme[contribNom] = (custom && custom.trim()) ? custom.trim() : 'Autres';
-  } else if(!value){
-    delete contribOrganisme[contribNom];
-  } else {
-    contribOrganisme[contribNom] = value;
+    const custom = prompt("Précisez l'organisme :", (c.organisme && !['DGI','CNPS'].includes(c.organisme)) ? c.organisme : '');
+    finalValue = (custom && custom.trim()) ? custom.trim() : 'Autres';
   }
-  renderDeclarations();
+  try{
+    const data = await apiUsers(`/contribuables/${contribId}/organisme`, 'PATCH', { organisme: finalValue || null });
+    c.organisme = data.contribuable.organisme;
+    renderDeclarations();
+  }catch(e){ alert(e.message); renderDeclarations(); }
 }
 
 /* ---- Statut d'une cellule (contribuable × document à suivre) ---- */
-function updateCellStatut(contribNom, docTypeNom, value){
-  const key = contribNom+'||'+docTypeNom;
-  if(value==='aucun'){
-    delete docStatusMatrix[key];
-  } else {
-    docStatusMatrix[key] = { statut: value };
-  }
-  renderDeclarations();
-  renderKPIs();
-  renderTimeline();
-  refreshNotifications();
-  renderCalendar();
+async function updateCellStatut(contribId, docTypeId, value){
+  const key = contribId+'||'+docTypeId;
+  try{
+    await apiUsers('/declaration-statuts', 'POST',
+      { contribuable_id: contribId, tracked_doc_type_id: docTypeId, statut: value });
+    if(value==='aucun'){ delete docStatusMatrix[key]; }
+    else { docStatusMatrix[key] = { statut: value==='penalite' ? 'non_declare' : value }; }
+    renderDeclarations(); renderKPIs(); renderTimeline(); refreshNotifications(); renderCalendar();
+  }catch(e){ alert(e.message); renderDeclarations(); }
 }
 
 /* ---- Liste des documents à suivre (écran Documents) ---- */
-function addTrackedDocType(){
+async function addTrackedDocType(){
   const input = document.getElementById('f-trackeddoc-nom');
   const nom = input.value.trim();
   if(!nom){ alert('Veuillez saisir un nom de document à suivre.'); return; }
-  if(trackedDocTypes.some(t=>t.nom.toLowerCase()===nom.toLowerCase())){ alert('Ce document à suivre existe déjà.'); return; }
-  trackedDocTypes.push({ nom, dateLimite: null });
-  input.value='';
-  renderTrackedDocList();
-  renderTrackedDeadlineList();
-  renderDeclarations();
-  renderKPIs();
+  try{
+    const data = await apiUsers('/tracked-doc-types', 'POST', { nom });
+    trackedDocTypes.push({ id: data.trackedDocType.id, nom: data.trackedDocType.nom, dateLimite: null });
+    input.value='';
+    renderTrackedDocList(); renderTrackedDeadlineList(); renderDeclarations(); renderKPIs();
+  }catch(e){ alert(e.message); }
 }
-function removeTrackedDocType(i){
-  if(confirm(`Retirer « ${trackedDocTypes[i].nom} » des documents à suivre ? Les statuts déjà enregistrés pour ce document seront perdus.`)){
-    const nom = trackedDocTypes[i].nom;
-    Object.keys(docStatusMatrix).forEach(key=>{ if(key.endsWith('||'+nom)) delete docStatusMatrix[key]; });
-    trackedDocTypes.splice(i,1);
-    renderTrackedDocList();
-    renderTrackedDeadlineList();
-    renderDeclarations();
-    renderTimeline();
-    refreshNotifications();
-    renderCalendar();
-    renderKPIs();
-  }
+async function removeTrackedDocType(id){
+  const type = findTrackedDocType(id);
+  if(!confirm(`Retirer « ${type.nom} » des documents à suivre ? Les statuts déjà enregistrés seront perdus.`)) return;
+  try{
+    await apiUsers(`/tracked-doc-types/${id}`, 'DELETE');
+    Object.keys(docStatusMatrix).forEach(k=>{ if(k.endsWith('||'+id)) delete docStatusMatrix[k]; });
+    trackedDocTypes = trackedDocTypes.filter(t=>Number(t.id)!==Number(id));
+    renderTrackedDocList(); renderTrackedDeadlineList(); renderDeclarations();
+    renderTimeline(); refreshNotifications(); renderCalendar(); renderKPIs();
+  }catch(e){ alert(e.message); }
 }
 function renderTrackedDocList(){
   const el = document.getElementById('trackedDocList');
   if(!el) return;
-  el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map((t,i)=>`
+  el.innerHTML = trackedDocTypes.length ? trackedDocTypes..map(t=>
     <span class="tag" style="padding:7px 10px;">
       ${t.nom}
-      <button class="mini-btn" style="width:18px;height:18px;margin-left:2px;" title="Retirer" onclick="removeTrackedDocType(${i})"><svg style="width:11px;height:11px"><use href="#i-x"/></svg></button>
+      <button class="mini-btn" style="width:18px;height:18px;margin-left:2px;" title="Retirer" onclick="removeTrackedDocType(${t.id})"><svg style="width:11px;height:11px"><use href="#i-x"/></svg></button>
     </span>`).join('') : `<span style="font-size:12px;color:var(--text-400);">Aucun document à suivre configuré pour le moment.</span>`;
 }
 
 /* ---- Échéances des documents à suivre (écran Déclaration) ---- */
-function renderTrackedDeadlineList(){
+ function renderTrackedDeadlineList(){
   const el = document.getElementById('trackedDeadlineList');
   if(!el) return;
-  el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map((t,i)=>`
+  el.innerHTML = trackedDocTypes.length ? trackedDocTypes..map(t=>`
     <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:1px solid var(--line);border-radius:9px;">
       <span class="cell-strong" style="flex:1;">${t.nom}</span>
-      <input type="date" value="${toISOInput(t.dateLimite)}" onchange="setTrackedDeadline(${i}, this.value)">
+      <input type="date" value="${toISOInput(t.dateLimite)}" onchange="setTrackedDeadline(${t.id}, this.value)">
     </div>`).join('') : `<span style="font-size:12px;color:var(--text-400);">Configurez d'abord des documents à suivre depuis l'écran Documents.</span>`;
 }
-function setTrackedDeadline(i, value){
-  trackedDocTypes[i].dateLimite = value ? (()=>{ const [y,m,d]=value.split('-').map(Number); return new Date(y,m-1,d); })() : null;
-  renderDeclarations();
-  renderTimeline();
-  refreshNotifications();
-  renderCalendar();
+async function setTrackedDeadline(id, value){
+  const type = findTrackedDocType(id);
+  try{
+    const data = await apiUsers(`/tracked-doc-types/${id}/deadline`, 'PATCH', { date_limite: value || null });
+    type.dateLimite = data.trackedDocType.date_limite
+      ? new Date(data.trackedDocType.date_limite + 'T00:00:00') : null;
+    renderDeclarations(); renderTimeline(); refreshNotifications(); renderCalendar();
+  }catch(e){ alert(e.message); renderTrackedDeadlineList(); }
 }
 
 /* ---- Auto-liaison à l'enregistrement d'un document (écran Documents) ---- */
 function autoLinkTrackedDoc(doc){
-  const match = trackedDocTypes.find(t=>t.nom.toLowerCase()===doc.type.toLowerCase());
-  if(!match || !doc.contrib) return;
-  const key = doc.contrib+'||'+match.nom;
-  if(!docStatusMatrix[key]){
-    docStatusMatrix[key] = { statut: 'non_declare' };
-  }
+  // La liaison est réalisée côté serveur (DocumentController::autoLierDocumentSuivi).
+  // Ici on met simplement la matrice locale à jour pour un affichage immédiat.
+  const match = trackedDocTypes.find(t=>t.nom.trim().toLowerCase() === (doc.type||'').trim().toLowerCase());
+  if(!match || !doc.contribuable_id) return;
+  const key = doc.contribuable_id+'||'+match.id;
+  if(!docStatusMatrix[key]) docStatusMatrix[key] = { statut:'non_declare' };
 }
 
 /* ---- Contribuables non en règle ---- */
@@ -1702,7 +1708,7 @@ function editDocument(i){
   document.getElementById('f-doc-nom').value = doc.nom;
   setSelectValueOrAutre('f-doc-type', doc.type);
   onDocTypeChange();
-  document.getElementById('f-doc-contrib').value = doc.contrib;
+  document.getElementById('f-doc-contrib').value = doc.contribuable_id || '';
   document.getElementById('f-doc-fournisseur').value = doc.fournisseur==='—' ? '' : doc.fournisseur;
   document.getElementById('f-doc-montant').value = doc.montant || '';
   document.getElementById('f-doc-file').value = '';
@@ -1749,7 +1755,7 @@ function openModal(id){
   if(id==='modalDocument'){
     const sel = document.getElementById('f-doc-contrib');
     sel.innerHTML = contribuables.length
-      ? contribuables.map(c=>`<option>${c.nom}</option>`).join('')
+      ? contribuables.map(c=>`<option value="${c.id}">${c.nom}</option>`).join('')
       : `<option value="" disabled selected>— Aucun contribuable enregistré —</option>`;
   }
   if(id==='modalContribuable'){
@@ -1860,31 +1866,46 @@ async function submitContribuable(){
     clearContribForm();
   }catch(e){ alert(e.message); }
 }
-function submitDocument(){
+async function submitDocument(){
   const nom = document.getElementById('f-doc-nom').value.trim();
   if(!nom){ alert('Le nom du document est obligatoire.'); return; }
   const fileInput = document.getElementById('f-doc-file');
   const file = fileInput.files[0];
   const isEdit = editDocIndex !== null;
-  const previous = isEdit ? documents[editDocIndex] : null;
-  const baseDoc = {
-    id: isEdit ? previous.id : docIdCounter++,
-    nom, type: getSelectValue('f-doc-type'),
-    contrib: document.getElementById('f-doc-contrib').value,
-    fournisseur: document.getElementById('f-doc-fournisseur').value||'—',
-    montant: Number(document.getElementById('f-doc-montant').value)||0,
-    date: isEdit ? previous.date : new Date().toLocaleDateString('fr-FR'),
-    dateModif: new Date().toLocaleDateString('fr-FR'),
-    fileDataUrl: isEdit ? previous.fileDataUrl : null,
-    fileName: isEdit ? previous.fileName : null
-  };
-  const finalize = () => {
-    if(isEdit){
-      documents[editDocIndex] = baseDoc;
-    } else {
-      documents.unshift(baseDoc);
+ 
+  // FormData est obligatoire pour transmettre un fichier (pas de JSON possible ici)
+  const fd = new FormData();
+  fd.append('nom', nom);
+  fd.append('type', getSelectValue('f-doc-type'));
+  fd.append('fournisseur', document.getElementById('f-doc-fournisseur').value || '');
+  fd.append('montant', Number(document.getElementById('f-doc-montant').value) || 0);
+  fd.append('contribuable_id', document.getElementById('f-doc-contrib').value || '');
+  if(file) fd.append('fichier', file);
+  if(isEdit) fd.append('_method', 'PUT'); // Laravel a besoin de ce champ avec FormData
+ 
+  const url = isEdit ? `/documents/${documents[editDocIndex].id}` : '/documents';
+ 
+  try{
+    const res = await fetch(url, {
+      method: 'POST',                       // toujours POST : _method gère le PUT
+      headers: {
+        'X-CSRF-TOKEN': csrfToken,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: fd,                             // ⚠️ ne PAS définir Content-Type : le navigateur s'en charge
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      throw new Error(data.message
+        || (data.errors && Object.values(data.errors).flat().join('\n'))
+        || 'Une erreur est survenue.');
     }
-    autoLinkTrackedDoc(baseDoc);
+ 
+    if(isEdit){ documents[editDocIndex] = data.document; }
+    else { documents.unshift(data.document); }
+ 
+    autoLinkTrackedDoc(data.document);
     closeModal('modalDocument');
     resetDocuments();
     renderKPIs();
@@ -1897,17 +1918,12 @@ function submitDocument(){
       if(firstRow) firstRow.classList.add('row-new');
     }
     editDocIndex = null;
-    document.getElementById('f-doc-nom').value=''; document.getElementById('f-doc-fournisseur').value=''; document.getElementById('f-doc-montant').value='';
+    document.getElementById('f-doc-nom').value='';
+    document.getElementById('f-doc-fournisseur').value='';
+    document.getElementById('f-doc-montant').value='';
     fileInput.value='';
     document.getElementById('doc-file-hint').style.display='none';
-  };
-  if(file){
-    const reader = new FileReader();
-    reader.onload = e => { baseDoc.fileDataUrl = e.target.result; baseDoc.fileName = file.name; finalize(); };
-    reader.readAsDataURL(file);
-  } else {
-    finalize();
-  }
+  }catch(e){ alert(e.message); }
 }
 async function submitUser(){
   const nom = document.getElementById('f-user-nom').value.trim();

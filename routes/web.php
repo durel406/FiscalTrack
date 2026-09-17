@@ -90,26 +90,34 @@ Route::middleware('auth')->group(function () {
     })->name('contribuables.index');
 
     // ---- Documents (GED) ----
-    Route::get('/documents', function () {
-        return view('documents.index', [
-            'authUser' => fiscaltrackAuthUser(),
-            'initialContribuables' => \App\Contribuable::latest()->get(),
-        ]);
-    })->name('documents.index');
+    Route::get('/documents', 'DocumentController@page')->name('documents.index');
+    Route::get('/archives',  'DocumentController@archivesPage')->name('archives.index');
+ 
+    // ---- Actions (appelées en AJAX depuis le JavaScript) ----
+    Route::post('/documents',                 'DocumentController@store')->name('documents.store');
+    Route::put('/documents/{id}',             'DocumentController@update')->name('documents.update');
+    Route::patch('/documents/{id}/archive',   'DocumentController@archive')->name('documents.archive');
+    Route::patch('/documents/{id}/restore',   'DocumentController@restore')->name('documents.restore');
+    Route::delete('/documents/{id}',          'DocumentController@destroy')->name('documents.destroy');
+ 
+    // ---- Téléchargement / aperçu du fichier joint ----
+    Route::get('/documents/{id}/fichier',     'DocumentController@fichier')->name('documents.fichier');
+    // Route::get('/documents', function () {
+    //     return view('documents.index', [
+    //         'authUser' => fiscaltrackAuthUser(),
+    //         'initialContribuables' => \App\Contribuable::latest()->get(),
+    //     ]);
+    // })->name('documents.index');
 
     // ---- Archives ----
-    Route::get('/archives', function () {
-        return view('archives.index', [
-            'authUser' => fiscaltrackAuthUser(),
-        ]);
-    })->name('archives.index');
+    // Route::get('/archives', function () {
+    //     return view('archives.index', [
+    //         'authUser' => fiscaltrackAuthUser(),
+    //     ]);
+    // })->name('archives.index');
 
     // ---- Déclaration ----
-    Route::get('/declarations', function () {
-        return view('declarations.index', [
-            'authUser' => fiscaltrackAuthUser(),
-        ]);
-    })->name('declarations.index');
+    Route::get('/declarations', 'DeclarationController@page')->name('declarations.index');
 
     // ---- Notifications ----
     Route::get('/notifications', function () {
@@ -133,4 +141,10 @@ Route::middleware('auth')->group(function () {
     Route::put('/users/{id}', 'UserController@update')->name('users.update');
     Route::patch('/users/{id}/toggle-status', 'UserController@toggleStatus')->name('users.toggle');
     Route::delete('/users/{id}', 'UserController@destroy')->name('users.destroy');
+    Route::post('/tracked-doc-types', 'DeclarationController@storeTrackedDocType');
+    Route::delete('/tracked-doc-types/{id}', 'DeclarationController@destroyTrackedDocType');
+    Route::patch('/tracked-doc-types/{id}/deadline', 'DeclarationController@updateDeadline');
+    Route::post('/declaration-statuts', 'DeclarationController@storeStatut');
+    Route::patch('/contribuables/{id}/organisme', 'DeclarationController@updateOrganisme');
+  Route::patch('/contribuables/{id}/lien-verification', 'DeclarationController@updateLienVerification');
 });
