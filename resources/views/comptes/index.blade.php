@@ -33,8 +33,19 @@
       </div>
       <div class="field"><label>Email</label><input id="f-user-email" type="email" placeholder="prenom.nom@fiscaltrack.test"></div>
       <div class="field-row">
-        <div class="field"><label>Rôle</label><select id="f-user-role"><option>Comptable</option><option>Responsable fiscal</option><option>Administrateur</option><option>Autres</option></select><input type="text" id="f-user-role-autre" class="autre-field" placeholder="Précisez le rôle" style="display:none;"></div>
-        <div class="field"><label>Statut</label><select id="f-user-statut"><option>Actif</option><option>Suspendu</option></select></div>
+        <div class="field"><label>Rôle</label>
+          <select id="f-user-role">
+            <option value="Comptable">Comptable</option>
+            <option value="Responsable fiscal">Responsable fiscal</option>
+            <option value="Administrateur">Administrateur</option>
+          </select>
+        </div>
+        <div class="field"><label>Statut</label>
+          <select id="f-user-statut">
+            <option value="Actif">Actif</option>
+            <option value="Suspendu">Suspendu</option>
+          </select>
+        </div>
       </div>
       <div class="field"><label>Mot de passe temporaire</label><input id="f-user-pass" type="password" placeholder="••••••••"></div>
     </div>
@@ -46,6 +57,6 @@
 
 @push('scripts')
 <script>
-reloadUsers();
+renderUsers();
 </script>
 @endpush

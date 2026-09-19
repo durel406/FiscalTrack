@@ -140,9 +140,12 @@ Route::middleware('auth')->group(function () {
             'initialUsers' => fiscaltrackInitialUsers(),
         ]);
     })->name('comptes.index');
+    Route::get('/compte', function () {
+        return redirect()->route('comptes.index');
+    });
 
-    // ---- API JSON Comptes utilisateurs (déjà existante, inchangée) ----
-    Route::get('/users', 'UserController@page')->name('users.index');
+    // ---- API JSON Comptes utilisateurs ----
+    Route::get('/users', 'UserController@index')->name('users.index');
     Route::post('/users', 'UserController@store')->name('users.store');
     Route::put('/users/{id}', 'UserController@update')->name('users.update');
     Route::patch('/users/{id}/toggle-status', 'UserController@toggleStatus')->name('users.toggle');

@@ -1992,23 +1992,25 @@ async function apiUsers(url, method, body){
 
 function renderUsers(){
   if(!document.getElementById('userTbody')) return;
+  if(!Array.isArray(users)) users = [];
   const q=(document.getElementById('userSearch').value||'').toLowerCase();
   const rows = users.filter(u=>String(u.nom||'').toLowerCase().includes(q)||String(u.email||'').toLowerCase().includes(q));
   document.getElementById('userCount').textContent = rows.length+' compte(s) sur '+users.length;
   document.getElementById('userTbody').innerHTML = rows.length ? rows.map(u=>`
     <tr>
       <td><div style="display:flex;align-items:center;gap:10px;">
-        <div class="avatar" style="width:30px;height:30px;font-size:11px;">${initials(u.nom)}</div>
-        <span class="cell-strong">${u.nom}</span>
+        <div class="avatar" style="width:30px;height:30px;font-size:11px;">${initials(u.nom||'?')}</div>
+        <span class="cell-strong">${u.nom||'—'}</span>
       </div></td>
-      <td>${u.email}</td>
-      <td>${u.role}</td>
+      <td>${u.email||'—'}</td>
+      <td>${u.role||'—'}</td>
       <td><span class="badge ${u.statut==='active'?'b-active':'b-inactive'}">${u.statut==='active'?'Actif':'Suspendu'}</span></td>
       <td><div class="row-actions">
         <button class="mini-btn" title="Modifier" onclick="editUser(${u.id})"><svg><use href="#i-edit"/></svg></button>
-        <button class="mini-btn" title="${u.statut==='active'?'Suspendre':'Réactiver'}" onclick="toggleUserStatut(${u.id})"><svg><use href="#i-trash"/></svg></button>
+        <button class="mini-btn" title="${u.statut==='active'?'Suspendre':'Réactiver'}" onclick="toggleUserStatut(${u.id})"><svg><use href="#i-alert"/></svg></button>
+        <button class="mini-btn" title="Supprimer" onclick="deleteUser(${u.id})"><svg><use href="#i-trash"/></svg></button>
       </div></td>
-    </tr>`).join('') : `<tr><td colspan="5" class="empty">Aucun compte ne correspond à votre recherche.</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="5" class="empty">Aucun compte utilisateur.</td></tr>`;
 }
 async function toggleUserStatut(id){
   const u = users.find(x=>Number(x.id)===Number(id));
@@ -2022,6 +2024,16 @@ async function toggleUserStatut(id){
     renderUsers();
   }catch(e){ alert(e.message); }
 }
+async function deleteUser(id){
+  const u = users.find(x=>Number(x.id)===Number(id));
+  if(!u) return;
+  if(!confirm(`Supprimer définitivement le compte de ${u.nom} ?`)) return;
+  try{
+    await apiUsers(`/users/${id}`, 'DELETE');
+    users = users.filter(x=>Number(x.id)!==Number(id));
+    renderUsers();
+  }catch(e){ alert(e.message); }
+}
 const userSearchInput = document.getElementById('userSearch');
 if(userSearchInput) userSearchInput.addEventListener('input', renderUsers);
 function resetUsers(){
@@ -2032,9 +2044,12 @@ function resetUsers(){
 async function reloadUsers(){
   try{
     const data = await apiUsers('/users', 'GET');
-    users = data.users || [];
+    if(Array.isArray(data.users)) users = data.users;
     renderUsers();
-  }catch(e){ console.error(e); }
+  }catch(e){
+    console.error(e);
+    renderUsers();
+  }
 }
 
 /* ================= MODALS ================= */
@@ -2159,9 +2174,8 @@ function openAddUser(){
   document.getElementById('f-user-nom').value='';
   document.getElementById('f-user-prenom').value='';
   document.getElementById('f-user-email').value='';
-  document.getElementById('f-user-role').selectedIndex=0;
-  document.getElementById('f-user-role-autre').value=''; document.getElementById('f-user-role-autre').style.display='none';
-  document.getElementById('f-user-statut').selectedIndex=0;
+  document.getElementById('f-user-role').value = 'Comptable';
+  document.getElementById('f-user-statut').value = 'Actif';
   document.getElementById('f-user-pass').value='';
   document.getElementById('f-user-pass').placeholder='••••••••';
   document.getElementById('f-user-pass').required = true;
@@ -2178,7 +2192,9 @@ function editUser(id){
   document.getElementById('f-user-prenom').value = parts.shift() || '';
   document.getElementById('f-user-nom').value = parts.join(' ');
   document.getElementById('f-user-email').value = u.email;
-  setSelectValueOrAutre('f-user-role', u.role);
+  const roleSel = document.getElementById('f-user-role');
+  const knownRoles = Array.from(roleSel.options).map(o=>o.value);
+  roleSel.value = knownRoles.includes(u.role) ? u.role : 'Comptable';
   document.getElementById('f-user-statut').value = u.statut==='active' ? 'Actif' : 'Suspendu';
   document.getElementById('f-user-pass').value='';
   document.getElementById('f-user-pass').placeholder='Laisser vide pour ne pas changer';
@@ -2238,7 +2254,7 @@ function setSelectValueOrAutre(selectId, value){
     if(autreInput){ autreInput.value = value||''; autreInput.style.display='block'; }
   }
 }
-['f-contrib-regime','f-contrib-cat','f-user-role'].forEach(setupAutresOption);
+['f-contrib-regime','f-contrib-cat'].forEach(setupAutresOption);
 
 /* ---- Le libellé du montant s'adapte au type de document choisi ---- */
 function onDocTypeChange(){
@@ -2373,7 +2389,7 @@ async function submitUser(){
 
   const payload = {
     nom, prenom, email,
-    role: getSelectValue('f-user-role'),
+    role: document.getElementById('f-user-role').value,
     statut: document.getElementById('f-user-statut').value==='Actif'?'active':'inactive',
     password: password || null,
   };
@@ -2391,10 +2407,6 @@ async function submitUser(){
     closeModal('modalUser');
     resetUsers();
     editUserId = null;
-    document.getElementById('f-user-nom').value='';
-    document.getElementById('f-user-prenom').value='';
-    document.getElementById('f-user-email').value='';
-    document.getElementById('f-user-pass').value='';
   }catch(e){ alert(e.message); }
 }
 

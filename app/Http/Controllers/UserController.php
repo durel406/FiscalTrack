@@ -10,18 +10,20 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-    
-    public function page()
-{
-    return view('comptes.index', [
-        'initialUsers' => \App\User::latest()->get(), // adaptez au modèle/champs réels
-    ]);
-}
+    const ROLES = ['admin', 'comptable', 'responsable_fiscal'];
+
     public function __construct()
     {
         $this->middleware('auth');
     }
 
+    /** Page HTML — redirige vers /comptes */
+    public function page()
+    {
+        return redirect()->route('comptes.index');
+    }
+
+    /** Liste JSON des utilisateurs */
     public function index()
     {
         $this->ensureAdmin();
@@ -40,17 +42,17 @@ class UserController extends Controller
         $data = $this->validated($request, true);
 
         $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'role' => $data['role'],
-            'status' => $data['status'],
+            'name'        => $data['name'],
+            'email'       => $data['email'],
+            'password'    => Hash::make($data['password']),
+            'role'        => $data['role'],
+            'status'      => $data['status'],
             'identifiant' => $data['role'] === 'admin' ? ($data['identifiant'] ?? null) : null,
         ]);
 
         return response()->json([
             'message' => 'Compte créé.',
-            'user' => $this->toArray($user),
+            'user'    => $this->toArray($user),
         ], 201);
     }
 
@@ -65,6 +67,7 @@ class UserController extends Controller
         $user->email = $data['email'];
         $user->role = $data['role'];
         $user->status = $data['status'];
+        $user->identifiant = $data['role'] === 'admin' ? ($data['identifiant'] ?? $user->identifiant) : null;
 
         if (! empty($data['password'])) {
             $user->password = Hash::make($data['password']);
@@ -74,7 +77,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Compte mis à jour.',
-            'user' => $this->toArray($user->fresh()),
+            'user'    => $this->toArray($user->fresh()),
         ]);
     }
 
@@ -93,7 +96,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => $user->status === 'active' ? 'Compte réactivé.' : 'Compte suspendu.',
-            'user' => $this->toArray($user),
+            'user'    => $this->toArray($user),
         ]);
     }
 
@@ -115,27 +118,35 @@ class UserController extends Controller
     private function validated(Request $request, bool $creating, $ignoreId = null): array
     {
         $rules = [
-            'nom' => ['required', 'string', 'max:100'],
+            'nom'    => ['required', 'string', 'max:100'],
             'prenom' => ['required', 'string', 'max:100'],
-            'email' => [
+            'email'  => [
                 'required',
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($ignoreId),
             ],
-            'role' => ['required', 'string', 'max:100'],
+            'role'   => ['required', 'string', 'max:100'],
             'statut' => ['required', 'in:active,inactive'],
             'password' => [$creating ? 'required' : 'nullable', 'string', 'min:6'],
+            'identifiant' => ['nullable', 'string', 'max:100'],
         ];
 
         $validated = $request->validate($rules);
+        $role = $this->normalizeRole($validated['role']);
+
+        if (! in_array($role, self::ROLES, true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'role' => ['Rôle invalide. Choisissez Administrateur, Comptable ou Responsable fiscal.'],
+            ]);
+        }
 
         return [
-            'name' => trim($validated['prenom'].' '.$validated['nom']),
-            'email' => $validated['email'],
-            'password' => $validated['password'] ?? null,
-            'role' => $this->normalizeRole($validated['role']),
-            'status' => $validated['statut'],
+            'name'        => trim($validated['prenom'].' '.$validated['nom']),
+            'email'       => $validated['email'],
+            'password'    => $validated['password'] ?? null,
+            'role'        => $role,
+            'status'      => $validated['statut'],
             'identifiant' => $request->input('identifiant'),
         ];
     }
@@ -143,13 +154,13 @@ class UserController extends Controller
     private function normalizeRole(string $role): string
     {
         $map = [
-            'Administrateur' => 'admin',
-            'Comptable' => 'comptable',
-            'Responsable fiscal' => 'responsable_fiscal',
-            'admin' => 'admin',
-            'comptable' => 'comptable',
-            'responsable_fiscal' => 'responsable_fiscal',
-            'fiscal' => 'responsable_fiscal',
+            'Administrateur'      => 'admin',
+            'Comptable'           => 'comptable',
+            'Responsable fiscal'  => 'responsable_fiscal',
+            'admin'               => 'admin',
+            'comptable'           => 'comptable',
+            'responsable_fiscal'  => 'responsable_fiscal',
+            'fiscal'              => 'responsable_fiscal',
         ];
 
         return $map[$role] ?? $role;
@@ -158,10 +169,10 @@ class UserController extends Controller
     private function roleLabel(string $role): string
     {
         $map = [
-            'admin' => 'Administrateur',
-            'comptable' => 'Comptable',
+            'admin'              => 'Administrateur',
+            'comptable'          => 'Comptable',
             'responsable_fiscal' => 'Responsable fiscal',
-            'fiscal' => 'Responsable fiscal',
+            'fiscal'             => 'Responsable fiscal',
         ];
 
         return $map[$role] ?? $role;
@@ -169,13 +180,15 @@ class UserController extends Controller
 
     private function toArray(User $user): array
     {
+        $roleKey = $user->role === 'responsable_fiscal' ? 'fiscal' : $user->role;
+
         return [
-            'id' => $user->id,
-            'nom' => $user->name,
-            'email' => $user->email,
-            'role' => $this->roleLabel($user->role),
-            'role_key' => $user->role === 'responsable_fiscal' ? 'fiscal' : $user->role,
-            'statut' => $user->status ?: 'active',
+            'id'       => $user->id,
+            'nom'      => $user->name,
+            'email'    => $user->email,
+            'role'     => $this->roleLabel($user->role ?: 'comptable'),
+            'role_key' => $roleKey ?: 'comptable',
+            'statut'   => $user->status ?: 'active',
         ];
     }
 
