@@ -21,6 +21,7 @@ class CreateObligationsTable extends Migration
                 // a_declarer | declare | justificatif_depose
                 $table->string('statut', 40)->default('a_declarer');
                 $table->string('organisme', 120)->nullable();
+                $table->unsignedBigInteger('montant')->nullable();
                 $table->string('resultat_controle', 40)->nullable(); // en_regle | non_conforme | null
                 $table->text('commentaire_controle')->nullable();
                 $table->date('date_controle')->nullable();

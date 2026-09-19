@@ -8,9 +8,7 @@ class TrackedDocType extends Model
 {
     protected $table = 'tracked_doc_types';
 
-    protected $fillable = ['nom', 'date_limite', 'periodicite', 'organisme_defaut'];
-
-    protected $dates = ['date_limite'];
+    protected $fillable = ['nom', 'periodicite', 'organisme_defaut'];
 
     public function statuts()
     {
@@ -27,7 +25,6 @@ class TrackedDocType extends Model
         return [
             'id'               => $this->id,
             'nom'              => $this->nom,
-            'date_limite'      => $this->date_limite ? $this->date_limite->format('Y-m-d') : null,
             'periodicite'      => $this->periodicite ?: 'libre',
             'organisme_defaut' => $this->organisme_defaut,
         ];

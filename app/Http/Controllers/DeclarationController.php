@@ -26,6 +26,11 @@ class DeclarationController extends Controller
         return view('declarations.index', self::donneesSuivi());
     }
 
+    public function typesPage()
+    {
+        return view('declarations.types', self::donneesSuivi());
+    }
+
     public static function donneesSuivi()
     {
         $suivi = app(FiscalSuiviService::class);
@@ -49,14 +54,12 @@ class DeclarationController extends Controller
             'nom'              => 'required|string|max:120|unique:tracked_doc_types,nom',
             'periodicite'      => 'nullable|in:libre,mensuelle,trimestrielle,annuelle',
             'organisme_defaut' => 'nullable|string|max:40',
-            'date_limite'      => 'nullable|date',
         ]);
 
         $type = TrackedDocType::create([
             'nom'              => $data['nom'],
             'periodicite'      => isset($data['periodicite']) ? $data['periodicite'] : 'libre',
             'organisme_defaut' => isset($data['organisme_defaut']) ? $data['organisme_defaut'] : null,
-            'date_limite'      => isset($data['date_limite']) ? $data['date_limite'] : null,
         ]);
 
         return response()->json(['trackedDocType' => $type->toFront()], 201);
@@ -70,13 +73,11 @@ class DeclarationController extends Controller
             'nom'              => 'required|string|max:120|unique:tracked_doc_types,nom,'.$type->id,
             'periodicite'      => 'nullable|in:libre,mensuelle,trimestrielle,annuelle',
             'organisme_defaut' => 'nullable|string|max:40',
-            'date_limite'      => 'nullable|date',
         ]);
 
         $type->nom = $data['nom'];
         $type->periodicite = isset($data['periodicite']) ? $data['periodicite'] : 'libre';
         $type->organisme_defaut = isset($data['organisme_defaut']) ? $data['organisme_defaut'] : null;
-        $type->date_limite = array_key_exists('date_limite', $data) ? $data['date_limite'] : $type->date_limite;
         $type->save();
 
         return response()->json(['trackedDocType' => $type->toFront()]);
@@ -99,20 +100,8 @@ class DeclarationController extends Controller
 
     public function updateDeadline(Request $request, $id)
     {
-        $data = $request->validate([
-            'date_limite' => 'nullable|date',
-        ]);
-
+        // Conservé pour compatibilité : l'échéance se gère désormais sur chaque obligation.
         $type = TrackedDocType::findOrFail($id);
-        $type->date_limite = isset($data['date_limite']) ? $data['date_limite'] : null;
-        $type->save();
-
-        Obligation::where('tracked_doc_type_id', $type->id)
-            ->whereNull('date_limite')
-            ->where('statut', Obligation::STATUT_A_DECLARER)
-            ->update(['date_limite' => $type->date_limite]);
-
-        $this->suivi->syncNotifications();
 
         return response()->json(['trackedDocType' => $type->toFront()]);
     }
@@ -136,7 +125,10 @@ class DeclarationController extends Controller
             'periode'             => 'required|string|max:20',
             'date_limite'         => 'nullable|date',
             'organisme'           => 'nullable|string|max:120',
+            'montant'             => 'nullable|integer|min:0',
             'statut'              => 'nullable|in:a_declarer,declare,justificatif_depose',
+            'fichier'             => 'nullable|file|max:10240|mimes:pdf,png,jpg,jpeg',
+            'document_nom'        => 'nullable|string|max:255',
         ]);
 
         $type = TrackedDocType::findOrFail($data['tracked_doc_type_id']);
@@ -151,23 +143,53 @@ class DeclarationController extends Controller
             ? $data['organisme']
             : ($type->organisme_defaut ?: $contrib->organisme);
 
+        $hasFile = $request->hasFile('fichier');
+
         $obligation = Obligation::create([
             'contribuable_id'     => $data['contribuable_id'],
             'tracked_doc_type_id' => $data['tracked_doc_type_id'],
             'annee'               => $data['annee'],
             'periode'             => $periode,
             'date_limite'         => $dateLimite,
-            'statut'              => Obligation::STATUT_A_DECLARER,
+            'statut'              => $hasFile ? Obligation::STATUT_JUSTIFICATIF : Obligation::STATUT_A_DECLARER,
             'organisme'           => $organisme,
+            'montant'             => array_key_exists('montant', $data) && $data['montant'] !== null
+                ? (int) $data['montant']
+                : null,
+            'date_depot'          => $hasFile ? now()->toDateString() : null,
         ]);
+
+        $documentFront = null;
+        if ($hasFile) {
+            $file = $request->file('fichier');
+            $doc = new Document();
+            $doc->nom = ! empty($data['document_nom'])
+                ? $data['document_nom']
+                : ('Justificatif — '.$type->nom.' '.$periode.' '.$data['annee']);
+            $doc->type = $type->nom;
+            $doc->contribuable_id = $obligation->contribuable_id;
+            $doc->obligation_id = $obligation->id;
+            $doc->fournisseur = $organisme;
+            $doc->montant = $obligation->montant ?: 0;
+            $doc->fichier_path = $file->store('documents', 'public');
+            $doc->fichier_nom = $file->getClientOriginalName();
+            $doc->fichier_mime = $file->getClientMimeType();
+            $doc->save();
+            $documentFront = $doc->load('contribuable')->toFront();
+        }
 
         $this->suivi->mirrorDeclarationStatut($obligation);
         $this->suivi->syncNotifications();
 
-        return response()->json([
+        $payload = [
             'obligation' => $obligation->load(['contribuable', 'trackedDocType', 'documents'])->toFront(),
             'kpis'       => $this->suivi->kpis(),
-        ], 201);
+        ];
+        if ($documentFront) {
+            $payload['document'] = $documentFront;
+        }
+
+        return response()->json($payload, 201);
     }
 
     public function updateObligation(Request $request, $id)
@@ -179,6 +201,7 @@ class DeclarationController extends Controller
             'date_depot'           => 'nullable|date',
             'statut'               => 'nullable|in:a_declarer,declare,justificatif_depose',
             'organisme'            => 'nullable|string|max:120',
+            'montant'              => 'nullable|integer|min:0',
             'resultat_controle'    => 'nullable|in:en_regle,non_conforme',
             'commentaire_controle' => 'nullable|string|max:2000',
             'date_controle'        => 'nullable|date',
@@ -195,7 +218,7 @@ class DeclarationController extends Controller
             }
         }
 
-        foreach (['date_limite', 'date_depot', 'organisme', 'resultat_controle', 'commentaire_controle', 'date_controle', 'annee'] as $field) {
+        foreach (['date_limite', 'date_depot', 'organisme', 'montant', 'resultat_controle', 'commentaire_controle', 'date_controle', 'annee'] as $field) {
             if (array_key_exists($field, $data)) {
                 $obligation->{$field} = $data[$field];
             }
@@ -250,12 +273,12 @@ class DeclarationController extends Controller
         $doc->fichier_mime = $file->getClientMimeType();
         $doc->save();
 
-        // Dès qu'une pièce est jointe, on peut passer en justificatif_depose si déjà déclaré,
-        // sinon on reste a_declarer (le comptable marque déclaré manuellement).
-        if ($obligation->statut === Obligation::STATUT_DECLARE) {
-            $obligation->statut = Obligation::STATUT_JUSTIFICATIF;
-            $obligation->save();
+        // Statut automatique : pièce jointe => obligation clôturée
+        $obligation->statut = Obligation::STATUT_JUSTIFICATIF;
+        if (! $obligation->date_depot) {
+            $obligation->date_depot = now()->toDateString();
         }
+        $obligation->save();
 
         $this->suivi->mirrorDeclarationStatut($obligation);
         $this->suivi->syncNotifications();
@@ -265,6 +288,78 @@ class DeclarationController extends Controller
             'obligation' => $obligation->fresh(['contribuable', 'trackedDocType', 'documents'])->toFront(),
             'kpis'       => $this->suivi->kpis(),
         ], 201);
+    }
+
+    /**
+     * Renouvelle une obligation sur la période suivante (statut remis à déclarer).
+     */
+    public function renewObligation($id)
+    {
+        $source = Obligation::with('trackedDocType')->findOrFail($id);
+        $periodicite = $source->trackedDocType ? ($source->trackedDocType->periodicite ?: 'libre') : 'libre';
+        list($annee, $periode) = $this->nextPeriod((int) $source->annee, $source->periode, $periodicite);
+
+        $exists = Obligation::where([
+            'contribuable_id'     => $source->contribuable_id,
+            'tracked_doc_type_id' => $source->tracked_doc_type_id,
+            'annee'               => $annee,
+            'periode'             => $periode,
+        ])->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => "Une obligation existe déjà pour {$periode} {$annee}.",
+            ], 422);
+        }
+
+        $dateLimite = Obligation::suggestDeadline($annee, $periode, $periodicite);
+
+        $obligation = Obligation::create([
+            'contribuable_id'     => $source->contribuable_id,
+            'tracked_doc_type_id' => $source->tracked_doc_type_id,
+            'annee'               => $annee,
+            'periode'             => $periode,
+            'date_limite'         => $dateLimite,
+            'statut'              => Obligation::STATUT_A_DECLARER,
+            'organisme'           => $source->organisme,
+        ]);
+
+        $this->suivi->mirrorDeclarationStatut($obligation);
+        $this->suivi->syncNotifications();
+
+        return response()->json([
+            'obligation' => $obligation->load(['contribuable', 'trackedDocType', 'documents'])->toFront(),
+            'kpis'       => $this->suivi->kpis(),
+        ], 201);
+    }
+
+    protected function nextPeriod($annee, $periode, $periodicite = 'libre')
+    {
+        $periode = strtoupper((string) $periode);
+
+        if (preg_match('/^T([1-4])$/', $periode, $m)) {
+            $t = (int) $m[1];
+            if ($t >= 4) {
+                return [$annee + 1, 'T1'];
+            }
+
+            return [$annee, 'T'.($t + 1)];
+        }
+
+        if (preg_match('/^M(\d{2})$/', $periode, $m)) {
+            $month = (int) $m[1];
+            if ($month >= 12) {
+                return [$annee + 1, 'M01'];
+            }
+
+            return [$annee, 'M'.str_pad((string) ($month + 1), 2, '0', STR_PAD_LEFT)];
+        }
+
+        if ($periode === 'ANNUEL' || $periodicite === 'annuelle') {
+            return [$annee + 1, 'ANNUEL'];
+        }
+
+        return [$annee + 1, $periode ?: 'AUTRE'];
     }
 
     // ================= LEGACY MATRIX STATUTS =================
@@ -318,8 +413,7 @@ class DeclarationController extends Controller
         ]);
 
         if (! $obligation->exists) {
-            $obligation->date_limite = $type->date_limite
-                ?: Obligation::suggestDeadline($annee, $periode, $type->periodicite);
+            $obligation->date_limite = Obligation::suggestDeadline($annee, $periode, $type->periodicite);
             $obligation->organisme = $type->organisme_defaut;
         }
 

@@ -14,6 +14,7 @@
           <div><h3>Gestion des documents</h3></div>
           <div class="toolbar">
             <div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Rechercher un document…" id="docSearch"></div>
+            <select class="filter-select" id="docFilterContrib"><option value="">Tous contribuables</option></select>
             <select class="filter-select" id="docFilterType"><option value="">Tous les types</option><option>Avis d'imposition</option><option>Quittance</option><option>Facture</option><option>Attestation d'immatriculation</option><option>ATMP</option><option>ACS</option><option>ACF</option></select>
             <button class="reset-btn" title="Réinitialiser le tableau" onclick="resetDocuments()"><svg><use href="#i-refresh"/></svg>Réinitialiser</button>
           </div>
@@ -24,65 +25,7 @@
         </table>
       </div>
       <div class="count-below" id="docCount">— résultats</div>
-
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-head">
-          <div>
-            <h3>Types d'obligations (catalogue)</h3>
-            <div class="sub">Catalogue DGI / CNPS — périodicité et organisme par défaut. Utilisé pour créer les obligations de suivi.</div>
-          </div>
-          <button class="btn btn-primary" type="button" onclick="openTrackedTypeModal()"><svg><use href="#i-plus"/></svg>Ajouter un type</button>
-        </div>
-        <div style="padding:0 18px 16px;overflow:auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Libellé</th>
-                <th>Périodicité</th>
-                <th>Organisme</th>
-                <th>Échéance défaut</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="trackedDocList"></tbody>
-          </table>
-        </div>
-      </div>
     </section>
-
-<div class="overlay" id="ov-modalTrackedType">
-  <div class="modal" style="max-width:520px;">
-    <div class="modal-head"><h3 id="modalTrackedTypeTitle">Ajouter un type d'obligation</h3><button class="mini-btn" type="button" onclick="closeModal('modalTrackedType')"><svg><use href="#i-x"/></svg></button></div>
-    <div class="modal-body">
-      <input type="hidden" id="f-tracked-id">
-      <div class="field"><label>Libellé</label><input id="f-tracked-nom" placeholder="Ex : IGS, TVA, Cotisations CNPS"></div>
-      <div class="field-row">
-        <div class="field"><label>Périodicité</label>
-          <select id="f-tracked-periodicite">
-            <option value="libre">Libre</option>
-            <option value="mensuelle">Mensuelle</option>
-            <option value="trimestrielle">Trimestrielle</option>
-            <option value="annuelle">Annuelle</option>
-          </select>
-        </div>
-        <div class="field"><label>Organisme</label>
-          <select id="f-tracked-organisme">
-            <option value="">—</option>
-            <option value="DGI">DGI</option>
-            <option value="CNPS">CNPS</option>
-          </select>
-        </div>
-      </div>
-      <div class="field"><label>Date limite par défaut (optionnel)</label><input type="date" id="f-tracked-deadline"></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" type="button" onclick="closeModal('modalTrackedType')">Annuler</button>
-      <button class="btn btn-primary" type="button" onclick="submitTrackedType()">Enregistrer</button>
-    </div>
-  </div>
-</div>
-
-    <!-- ===== ARCHIVES ===== -->
 
 <div class="overlay" id="ov-modalDocument">
   <div class="modal">
@@ -125,9 +68,7 @@
         <label>Aperçu du fichier</label>
         <div id="fiche-doc-preview"></div>
       </div>
-      <div class="field" id="fiche-doc-nofile" style="display:none;">
-        <div class="empty" style="padding:10px 0;">Aucun fichier numérique n'a été associé à ce document.</div>
-      </div>
+      <div id="fiche-doc-nofile" style="display:none;font-size:12.5px;color:var(--text-400);">Aucun fichier numérique associé.</div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('modalDocumentView')">Fermer</button>
@@ -140,6 +81,7 @@
 
 @push('scripts')
 <script>
-renderDocuments(); renderTrackedDocList();
+populateDocContribFilter();
+renderDocuments();
 </script>
 @endpush

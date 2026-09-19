@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Déclaration')
-@section('crumb', 'FiscalTrack / Suivi / Déclaration')
+@section('title', 'Obligations')
+@section('crumb', 'FiscalTrack / Déclaration / Obligations')
 
 @section('content')
     <section class="section" id="sec-declarations">
       <div class="section-head">
         <div>
           <h2>Suivi des obligations fiscales</h2>
-          <p>Chaque obligation (contribuable × type × période) a une échéance, un statut et un justificatif GED obligatoire pour clôturer.</p>
+          <p>Chaque obligation (contribuable × type × période) a une échéance et un justificatif GED obligatoire. Le statut est calculé automatiquement.</p>
         </div>
         <button class="btn btn-primary" type="button" onclick="openObligationModal()"><svg><use href="#i-plus"/></svg>Nouvelle obligation</button>
       </div>
@@ -49,9 +49,10 @@
 
       <div class="panel" style="margin-bottom:16px;">
         <div class="panel-head">
-          <div><h3>Obligations à suivre</h3><div class="sub">Filtres opérationnels cabinet — année, période, échéance, pièce, statut.</div></div>
+          <div><h3>Obligations à suivre</h3><div class="sub">Filtres opérationnels — le statut se met à jour selon échéance et pièce jointe.</div></div>
           <div class="toolbar" style="flex-wrap:wrap;">
             <div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Nom ou NIU…" id="oblSearch"></div>
+            <select class="filter-select" id="oblFilterContrib"><option value="">Tous contribuables</option></select>
             <select class="filter-select" id="oblFilterAnnee"><option value="">Toutes années</option></select>
             <select class="filter-select" id="oblFilterPeriode">
               <option value="">Toutes périodes</option>
@@ -64,7 +65,6 @@
               <option value="">Tous statuts</option>
               <option value="a_declarer">À déclarer</option>
               <option value="penalite">En retard</option>
-              <option value="declare">Déclaré</option>
               <option value="justificatif_depose">Justificatif déposé</option>
             </select>
             <select class="filter-select" id="oblFilterEcheance">
@@ -91,6 +91,7 @@
                 <th>Obligation</th>
                 <th>Période</th>
                 <th>Échéance</th>
+                <th>Montant</th>
                 <th>Organisme</th>
                 <th>Statut</th>
                 <th>Justificatif</th>
@@ -105,33 +106,9 @@
 
       <div class="panel" style="margin-top:16px;">
         <div class="panel-head">
-          <div><h3>Matrice synthèse (année en cours)</h3><div class="sub">Vue rapide contribuable × type — les obligations détaillées restent la source de vérité.</div></div>
-          <div class="toolbar">
-            <div class="search-box"><svg><use href="#i-search"/></svg><input placeholder="Rechercher un contribuable…" id="declSearch"></div>
-            <select class="filter-select" id="declFilterOrg"><option value="">Tous organismes</option><option>DGI</option><option>CNPS</option></select>
-            <select class="filter-select" id="declFilterStatut"><option value="">Tous les contribuables</option><option value="non_conforme">Non en règle</option><option value="conforme">En règle</option></select>
-          </div>
-        </div>
-        <div class="dossier-scroll" style="max-height:40vh;">
-          <table class="dossier-table" style="width:max-content;min-width:100%;">
-            <thead id="declThead"></thead>
-            <tbody id="declTbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-head">
-          <div><h3>Contribuables non en règle</h3><div class="sub">Au moins une obligation ouverte (non déclarée / sans justificatif / en retard).</div></div>
+          <div><h3>Contribuables non en règle</h3><div class="sub">Au moins une obligation ouverte (sans justificatif / en retard).</div></div>
         </div>
         <div id="complianceList" style="padding:6px 18px 16px;display:flex;flex-direction:column;gap:8px;"></div>
-      </div>
-
-      <div class="panel" style="margin-top:16px;">
-        <div class="panel-head">
-          <div><h3>Dates limites par type (catalogue)</h3><div class="sub">Date par défaut proposée aux nouvelles obligations de ce type.</div></div>
-        </div>
-        <div id="trackedDeadlineList" style="padding:6px 18px 16px;display:flex;flex-direction:column;gap:8px;"></div>
       </div>
     </section>
 
@@ -159,11 +136,16 @@
         </div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Date limite</label><input type="date" id="f-obl-deadline"><div class="sub" style="font-size:11px;margin-top:4px;">Laissée vide = calcul auto (T+15j / 15 du mois / 15 mars).</div></div>
+        <div class="field"><label>Date limite</label><input type="date" id="f-obl-deadline"><div class="sub" style="font-size:11px;margin-top:4px;">Laissée vide = calcul auto selon périodicité.</div></div>
         <div class="field"><label>Organisme</label>
           <select id="f-obl-org"><option value="">—</option><option>DGI</option><option>CNPS</option><option>Autres</option></select>
         </div>
       </div>
+      <div class="field-row">
+        <div class="field"><label>Montant à payer (FCFA)</label><input type="number" id="f-obl-montant" min="0" step="1" placeholder="Ex : 150000"></div>
+        <div class="field"><label>Justificatif (optionnel)</label><input type="file" id="f-obl-fichier" accept=".pdf,.png,.jpg,.jpeg"><div class="sub" style="font-size:11px;margin-top:4px;">Si joint, le statut passe automatiquement à « Justificatif déposé ».</div></div>
+      </div>
+      <div class="field"><label>Nom du document</label><input id="f-obl-doc-nom" placeholder="Ex : Quittance IGS T1 2026 (si fichier joint)"></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" type="button" onclick="closeModal('modalObligation')">Annuler</button>
@@ -176,7 +158,7 @@
   <div class="modal" style="max-width:480px;">
     <div class="modal-head"><h3>Joindre un justificatif</h3><button class="mini-btn" type="button" onclick="closeModal('modalOblJustificatif')"><svg><use href="#i-x"/></svg></button></div>
     <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-600);margin:0 0 12px;" id="oblJustifHint">Le dépôt d'une pièce est obligatoire pour marquer l'obligation comme déclarée.</p>
+      <p style="font-size:13px;color:var(--text-600);margin:0 0 12px;" id="oblJustifHint">Le dépôt d'une pièce clôture automatiquement l'obligation.</p>
       <input type="hidden" id="f-obl-justif-id">
       <div class="field"><label>Nom du document</label><input id="f-obl-justif-nom" placeholder="Ex : Quittance IGS T2 2026"></div>
       <div class="field"><label>Fichier (PDF / PNG / JPG)</label><input type="file" id="f-obl-justif-file" accept=".pdf,.png,.jpg,.jpeg"></div>
@@ -191,9 +173,7 @@
 
 @push('scripts')
 <script>
-renderTrackedDeadlineList();
 renderObligationsList();
-renderDeclarations();
 renderObligationKpis();
 </script>
 @endpush

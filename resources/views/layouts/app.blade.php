@@ -103,27 +103,36 @@ input,select{font-family:inherit;}
   background:linear-gradient(190deg,var(--navy-900) 0%,var(--navy-800) 55%,var(--indigo-600) 130%);
   color:#fff;
   display:flex;flex-direction:column;
-  padding:22px 14px;
+  padding:16px 12px;
   position:relative;
   z-index:20;
   transition:transform .25s ease;
+  overflow:hidden;
 }
+.sidebar > img{
+  display:block;
+  width:118px;
+  max-width:70%;
+  height:auto;
+  margin:0 auto 12px;
+  object-fit:contain;
+}
+.sidebar-nav-scroll{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding-right:2px;
+  margin-right:-2px;
+}
+.sidebar-nav-scroll::-webkit-scrollbar{width:4px;}
+.sidebar-nav-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.25);border-radius:4px;}
 /* .brand{display:flex;align-items:center;gap:10px;padding:0 8px 22px 8px;}
 .brand-mark{width:34px;height:34px;position:relative;flex:none;}
 .brand-mark svg{width:100%;height:100%;display:block;}
 .brand-word{font-family:'Sora',sans-serif;font-weight:700;font-size:17px;letter-spacing:-.02em;line-height:1;}
 .brand-word span{font-weight:400;color:var(--ice-200);} */
-.role-pill{
-  margin:0 8px 18px 8px;
-  padding:9px 12px;
-  background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:10px;
-  display:flex;align-items:center;justify-content:space-between;
-  gap:8px;
-}
-.role-pill .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ice-200);opacity:.75;}
-.role-pill .role-fixed{color:#fff;font-size:13px;font-weight:600;}
+.role-pill{display:none;}
 
 .nav-group{margin-bottom:4px;}
 .nav-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.4);padding:14px 12px 6px;}
@@ -146,6 +155,13 @@ input,select{font-family:inherit;}
   background:linear-gradient(180deg,var(--ice-200),var(--blue-400));
 }
 .nav-item.hidden{display:none;}
+.nav-sub.hidden{display:none;}
+.nav-item.nav-parent{cursor:default;opacity:.95;font-weight:600;}
+.nav-item.nav-parent:hover{background:transparent;color:rgba(255,255,255,.85);}
+.nav-item.nav-parent.active::before{display:none;}
+.nav-sub{display:flex;flex-direction:column;gap:1px;margin:0 0 6px 8px;padding-left:10px;border-left:1px solid rgba(255,255,255,.12);}
+.nav-item.nav-sub-item{padding:8px 10px;font-size:12.5px;color:rgba(255,255,255,.72);}
+.nav-item.nav-sub-item svg{width:15px;height:15px;}
 
 .sidebar-foot{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);}
 .mini-card{
@@ -533,18 +549,8 @@ th.sticky-col{z-index:5;}
 
   <!-- ============ SIDEBAR ============ -->
   <aside class="sidebar" id="sidebar">
-    
-  <img src="images/fiscaltrack-logo.png" alt="FiscalTrack">
-    <!-- <div class="brand">
-      <div class="brand-mark"><svg><use href="#i-logo"/></svg></div>
-      <div class="brand-word">Fiscal<span>track</span></div>
-    </div> -->
-
-    <div class="role-pill">
-      <span class="lbl">Connecté comme</span>
-      <span class="role-fixed">{{ $authUser['role_label'] }}</span>
-    </div>
-    <fieldset style="margin-top: 10px; margin-bottom: 20px;"></fieldset>
+    <img src="{{ asset('images/fiscaltrack-logo.png') }}" alt="FiscalTrack">
+    <div class="sidebar-nav-scroll">
     <nav>
       <div class="nav-group">
         <div class="nav-label">Général</div>
@@ -563,21 +569,29 @@ th.sticky-col{z-index:5;}
         <a href="{{ route('archives.index') }}" class="nav-item {{ request()->routeIs('archives.*') ? 'active' : '' }}" data-roles="admin,comptable">
           <svg><use href="#i-archive"/></svg><span>Archives</span>
         </a>
-        <a href="{{ route('declarations.index') }}" class="nav-item {{ request()->routeIs('declarations.*') ? 'active' : '' }}" data-roles="admin,fiscal">
+        <div class="nav-item nav-parent {{ request()->routeIs('declarations.*') ? 'active' : '' }}" data-roles="admin,fiscal">
           <svg><use href="#i-file"/></svg><span>Déclaration</span>
-        </a>
+        </div>
+        <div class="nav-sub" data-roles="admin,fiscal">
+          <a href="{{ route('declarations.index') }}" class="nav-item nav-sub-item {{ request()->routeIs('declarations.index') ? 'active' : '' }}" data-roles="admin,fiscal">
+            <svg><use href="#i-file"/></svg><span>Obligations</span>
+          </a>
+          <a href="{{ route('declarations.types') }}" class="nav-item nav-sub-item {{ request()->routeIs('declarations.types') ? 'active' : '' }}" data-roles="admin,fiscal">
+            <svg><use href="#i-folder"/></svg><span>Types d'obligations</span>
+          </a>
+        </div>
       </div>
       <div class="nav-group">
         <div class="nav-label">Suivi</div>
         <a href="{{ route('notifications.index') }}" class="nav-item {{ request()->routeIs('notifications.*') ? 'active' : '' }}" data-roles="admin,comptable,fiscal">
           <svg><use href="#i-bell"/></svg><span>Notifications</span>
-          <!-- <span class="badge" id="navNotifBadge">3</span> -->
         </a>
         <a href="{{ route('comptes.index') }}" class="nav-item {{ request()->routeIs('comptes.*') ? 'active' : '' }}" data-roles="admin">
           <svg><use href="#i-settings"/></svg><span>Comptes utilisateurs</span>
         </a>
       </div>
     </nav>
+    </div>
 
     <div class="sidebar-foot">
       <div class="mini-card">
@@ -684,15 +698,11 @@ let editDocIndex = null;
 let editUserId = null;
 
 /* ---- Catalogue des types d'obligations (documents à suivre) ---- */
-let trackedDocTypes = (@json($initialTrackedDocTypes ?? [])).map(function(t){
-  return {
-    id: t.id,
-    nom: t.nom,
-    dateLimite: t.date_limite ? new Date(t.date_limite + 'T00:00:00') : null,
-    periodicite: t.periodicite || 'libre',
-    organisme_defaut: t.organisme_defaut || null
-  };
-});
+   let trackedDocTypes = (@json($initialTrackedDocTypes ?? [])).map(function(t){
+      return { id: t.id, nom: t.nom,
+               periodicite: t.periodicite || 'libre',
+               organisme_defaut: t.organisme_defaut || null };
+    });
 
 /* Matrice héritée (miroir) — clé = contribuable_id||tracked_doc_type_id */
 let docStatusMatrix = {};
@@ -786,6 +796,7 @@ const sectionRoutes = {
   documents:     @json(route('documents.index')),
   archives:      @json(route('archives.index')),
   declarations:  @json(route('declarations.index')),
+  declarationTypes: @json(route('declarations.types')),
   notifications: @json(route('notifications.index')),
   comptes:       @json(route('comptes.index')),
   profile:       @json(route('profile.index')),
@@ -828,19 +839,12 @@ document.querySelectorAll('.nav-item[data-section]').forEach(el=>{
 });
 
 function applyRole(role){
-  // Le nom, l'avatar et le libellé du rôle sont désormais rendus côté serveur
-  // (voir $authUser dans le layout) ; cette fonction ne fait plus que masquer
-  // les liens du menu latéral non autorisés pour le rôle de l'utilisateur connecté.
-  document.querySelectorAll('.nav-item[data-roles]').forEach(el=>{
+  document.querySelectorAll('.nav-item[data-roles], .nav-sub[data-roles]').forEach(el=>{
     const allowed = el.dataset.roles.split(',');
     el.classList.toggle('hidden', !allowed.includes(role));
   });
-  const active = document.querySelector('.nav-item.active');
-  // Filet de sécurité côté client uniquement : la vraie protection doit être faite
-  // par un middleware Laravel sur chaque route (voir explication en fin de réponse).
+  const active = document.querySelector('.nav-item.active:not(.nav-parent)');
   if(active && active.classList.contains('hidden')) goTo('dashboard');
-  const roleFixed = document.querySelector('.role-fixed');
-  if(roleFixed) roleFixed.textContent = roleLabels[role] || role;
 }
 // Rôle issu de la session Laravel
 applyRole(authUser.role || 'admin');
@@ -1134,8 +1138,6 @@ function computeCellStatut(contribId, docTypeId){
     const entry = docStatusMatrix[contribId+'||'+docTypeId];
     if(!entry) return 'aucun';
     if(entry.statut === 'declare') return 'declare';
-    const type = trackedDocTypes.find(t=>Number(t.id)===Number(docTypeId));
-    if(type && type.dateLimite && startOfDay(type.dateLimite) < startOfDay(new Date())) return 'penalite';
     return 'non_declare';
   }
   const open = matches.filter(o=>o.statut!=='declare' && o.statut!=='justificatif_depose');
@@ -1296,8 +1298,14 @@ function exportContribuablesPDF(){
 function renderDocuments(){
   if(!document.getElementById('docTbody')) return;
   const q = (document.getElementById('docSearch').value||'').toLowerCase();
-  const type = document.getElementById('docFilterType').value;
-  const rows = documents.filter(d=> (d.nom.toLowerCase().includes(q)||d.contrib.toLowerCase().includes(q)) && (!type || d.type===type));
+  const type = (document.getElementById('docFilterType')||{}).value || '';
+  const contribId = (document.getElementById('docFilterContrib')||{}).value || '';
+  const rows = documents.filter(d=>{
+    if(!(d.nom.toLowerCase().includes(q)||(d.contrib||'').toLowerCase().includes(q))) return false;
+    if(type && d.type!==type) return false;
+    if(contribId && String(d.contribuable_id)!==String(contribId)) return false;
+    return true;
+  });
   document.getElementById('docCount').textContent = rows.length+' résultat(s) sur '+documents.length;
   document.getElementById('docTbody').innerHTML = rows.length ? rows.map(d=>{
     const idx = documents.indexOf(d);
@@ -1316,6 +1324,13 @@ function renderDocuments(){
       </div></td>
     </tr>`;
   }).join('') : `<tr><td colspan="7" class="empty">Aucun document ne correspond à votre recherche.</td></tr>`;
+}
+function populateDocContribFilter(){
+  const sel = document.getElementById('docFilterContrib');
+  if(!sel || sel.options.length>1) return;
+  contribuables.slice().sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr')).forEach(c=>{
+    const opt=document.createElement('option'); opt.value=c.id; opt.textContent=c.nom; sel.appendChild(opt);
+  });
 }
 async function archiveDocument(i){
   if(!confirm('Archiver ce document ?')) return;
@@ -1369,11 +1384,15 @@ const docSearchInput = document.getElementById('docSearch');
 if(docSearchInput) docSearchInput.addEventListener('input', renderDocuments);
 const docFilterType = document.getElementById('docFilterType');
 if(docFilterType) docFilterType.addEventListener('change', renderDocuments);
+const docFilterContrib = document.getElementById('docFilterContrib');
+if(docFilterContrib) docFilterContrib.addEventListener('change', renderDocuments);
 function resetDocuments(){
   const search = document.getElementById('docSearch');
   const filter = document.getElementById('docFilterType');
+  const contrib = document.getElementById('docFilterContrib');
   if(search) search.value='';
   if(filter) filter.selectedIndex=0;
+  if(contrib) contrib.selectedIndex=0;
   renderDocuments();
 }
 
@@ -1438,23 +1457,44 @@ function openObligationModal(){
   document.getElementById('f-obl-periode').value = 'T1';
   document.getElementById('f-obl-deadline').value = '';
   document.getElementById('f-obl-org').value = '';
+  document.getElementById('f-obl-montant').value = '';
+  document.getElementById('f-obl-fichier').value = '';
+  document.getElementById('f-obl-doc-nom').value = '';
   openModal('modalObligation');
 }
 async function submitObligation(){
-  const payload = {
-    contribuable_id: Number(document.getElementById('f-obl-contrib').value),
-    tracked_doc_type_id: Number(document.getElementById('f-obl-type').value),
-    annee: Number(document.getElementById('f-obl-annee').value),
-    periode: document.getElementById('f-obl-periode').value,
-    date_limite: document.getElementById('f-obl-deadline').value || null,
-    organisme: document.getElementById('f-obl-org').value || null,
-  };
-  if(!payload.contribuable_id || !payload.tracked_doc_type_id){
-    alert('Contribuable et type obligatoires.'); return;
+  const contribId = document.getElementById('f-obl-contrib').value;
+  const typeId = document.getElementById('f-obl-type').value;
+  if(!contribId || !typeId){ alert('Contribuable et type obligatoires.'); return; }
+  const fd = new FormData();
+  fd.append('contribuable_id', contribId);
+  fd.append('tracked_doc_type_id', typeId);
+  fd.append('annee', document.getElementById('f-obl-annee').value);
+  fd.append('periode', document.getElementById('f-obl-periode').value);
+  const deadline = document.getElementById('f-obl-deadline').value;
+  if(deadline) fd.append('date_limite', deadline);
+  const org = document.getElementById('f-obl-org').value;
+  if(org) fd.append('organisme', org);
+  const montant = document.getElementById('f-obl-montant').value;
+  if(montant !== '') fd.append('montant', montant);
+  const docNom = document.getElementById('f-obl-doc-nom').value;
+  if(docNom) fd.append('document_nom', docNom);
+  const fileInput = document.getElementById('f-obl-fichier');
+  if(fileInput && fileInput.files && fileInput.files[0]){
+    fd.append('fichier', fileInput.files[0]);
   }
   try{
-    const data = await apiUsers('/obligations', 'POST', payload);
+    const res = await fetch('/obligations', {
+      method:'POST',
+      headers:{ 'X-CSRF-TOKEN': csrfToken, 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest' },
+      body: fd
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){
+      throw new Error(data.message || (data.errors && Object.values(data.errors).flat().join('\n')) || 'Erreur enregistrement');
+    }
     obligations.push(data.obligation);
+    if(data.document) documents.unshift(data.document);
     applySuiviKpis(data.kpis);
     syncMatrixFromObligations();
     closeModal('modalObligation');
@@ -1463,6 +1503,7 @@ async function submitObligation(){
 }
 function filteredObligations(){
   const q = ((document.getElementById('oblSearch')||{}).value||'').toLowerCase();
+  const contribId = (document.getElementById('oblFilterContrib')||{}).value || '';
   const annee = (document.getElementById('oblFilterAnnee')||{}).value || '';
   const periode = (document.getElementById('oblFilterPeriode')||{}).value || '';
   const typeId = (document.getElementById('oblFilterType')||{}).value || '';
@@ -1472,6 +1513,7 @@ function filteredObligations(){
   const piece = (document.getElementById('oblFilterPiece')||{}).value || '';
   return obligations.filter(o=>{
     if(q && !(String(o.contribuable_nom||'').toLowerCase().includes(q) || String(o.contribuable_niu||'').toLowerCase().includes(q))) return false;
+    if(contribId && String(o.contribuable_id)!==String(contribId)) return false;
     if(annee && String(o.annee)!==String(annee)) return false;
     if(periode && o.periode!==periode) return false;
     if(typeId && Number(o.tracked_doc_type_id)!==Number(typeId)) return false;
@@ -1479,7 +1521,8 @@ function filteredObligations(){
     if(statut){
       const eff = o.statut_effectif || o.statut;
       if(statut === 'penalite'){ if(eff !== 'penalite') return false; }
-      else if(statut === 'a_declarer'){ if(o.statut !== 'a_declarer') return false; }
+      else if(statut === 'a_declarer'){ if(!(o.statut === 'a_declarer' || eff === 'penalite') || o.has_justificatif) return false; }
+      else if(statut === 'justificatif_depose'){ if(o.statut !== 'justificatif_depose' && !o.has_justificatif) return false; }
       else if(o.statut !== statut) return false;
     }
     if(ech && (o.echeance_bucket||'')!==ech) return false;
@@ -1493,8 +1536,14 @@ function filteredObligations(){
   });
 }
 function populateObligationFilters(){
+  const cSel = document.getElementById('oblFilterContrib');
   const ySel = document.getElementById('oblFilterAnnee');
   const tSel = document.getElementById('oblFilterType');
+  if(cSel && cSel.options.length<=1){
+    contribuables.slice().sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr')).forEach(c=>{
+      const opt=document.createElement('option'); opt.value=c.id; opt.textContent=c.nom; cSel.appendChild(opt);
+    });
+  }
   if(ySel && ySel.options.length<=1){
     const years = [...new Set(obligations.map(o=>o.annee))].sort((a,b)=>b-a);
     if(!years.includes(new Date().getFullYear())) years.unshift(new Date().getFullYear());
@@ -1512,11 +1561,11 @@ function renderObligationsList(){
   const countEl = document.getElementById('oblCount');
   if(countEl) countEl.textContent = rows.length+' résultat(s) sur '+obligations.length;
   if(!obligations.length){
-    tbody.innerHTML = `<tr><td colspan="8" class="empty">Aucune obligation. Cliquez sur « Nouvelle obligation » pour démarrer le suivi.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty">Aucune obligation. Cliquez sur « Nouvelle obligation » pour démarrer le suivi.</td></tr>`;
     renderObligationKpis(); renderComplianceList(); return;
   }
   if(!rows.length){
-    tbody.innerHTML = `<tr><td colspan="8" class="empty">Aucun résultat pour ces filtres.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty">Aucun résultat pour ces filtres.</td></tr>`;
     renderObligationKpis(); return;
   }
   tbody.innerHTML = rows.map(o=>{
@@ -1528,24 +1577,20 @@ function renderObligationsList(){
     const piece = o.has_justificatif
       ? `<span class="badge b-done">Joint</span>`
       : `<span class="badge b-late">Manquant</span>`;
+    const montantTxt = o.montant != null ? fmtFCFA(o.montant) : '—';
     return `<tr>
       <td class="cell-strong sticky-col">${o.contribuable_nom}<div style="font-size:11px;color:var(--text-400);">${o.contribuable_niu||''}</div></td>
       <td>${o.type_nom}</td>
       <td>${o.periode_label||o.periode} ${o.annee}</td>
       <td>${deadline}<div style="font-size:11px;color:var(--text-400);">${joursTxt}</div></td>
+      <td class="mono">${montantTxt}</td>
       <td>${o.organisme||'—'}</td>
-      <td>
-        <select class="inline-select statut-select statut-${badge}" onchange="changeObligationStatut(${o.id}, this.value)">
-          <option value="a_declarer" ${o.statut==='a_declarer'?'selected':''}>À déclarer</option>
-          <option value="declare" ${o.statut==='declare'?'selected':''}>Déclaré</option>
-          <option value="justificatif_depose" ${o.statut==='justificatif_depose'?'selected':''}>Justificatif déposé</option>
-        </select>
-        ${eff==='penalite'?'<div style="margin-top:4px;"><span class="badge b-late">En retard</span></div>':''}
-      </td>
+      <td><span class="badge ${badgeClass(badge)}">${statutLabel(badge)}</span></td>
       <td>${piece}</td>
       <td>
         <div class="row-actions">
           <button class="mini-btn" title="Joindre justificatif" onclick="openJustificatifModal(${o.id})"><svg><use href="#i-folder"/></svg></button>
+          <button class="mini-btn" title="Renouveler la déclaration" onclick="renewObligation(${o.id})"><svg><use href="#i-refresh"/></svg></button>
           <button class="mini-btn" title="Supprimer" onclick="deleteObligation(${o.id})"><svg><use href="#i-x"/></svg></button>
         </div>
       </td>
@@ -1555,7 +1600,7 @@ function renderObligationsList(){
   renderComplianceList();
 }
 function resetObligationFilters(){
-  ['oblSearch','oblFilterAnnee','oblFilterPeriode','oblFilterType','oblFilterOrg','oblFilterStatut','oblFilterEcheance','oblFilterPiece'].forEach(id=>{
+  ['oblSearch','oblFilterContrib','oblFilterAnnee','oblFilterPeriode','oblFilterType','oblFilterOrg','oblFilterStatut','oblFilterEcheance','oblFilterPiece'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     if(el.tagName==='INPUT') el.value=''; else el.selectedIndex=0;
@@ -1619,6 +1664,18 @@ async function deleteObligation(id){
   try{
     const data = await apiUsers(`/obligations/${id}`, 'DELETE');
     obligations = obligations.filter(o=>Number(o.id)!==Number(id));
+    applySuiviKpis(data.kpis);
+    syncMatrixFromObligations();
+    refreshSuiviUI();
+  }catch(e){ alert(e.message); }
+}
+async function renewObligation(id){
+  const o = findObligation(id);
+  if(!o) return;
+  if(!confirm(`Renouveler « ${o.type_nom} » pour la période suivante ?`)) return;
+  try{
+    const data = await apiUsers(`/obligations/${id}/renew`, 'POST', {});
+    if(data.obligation) obligations.push(data.obligation);
     applySuiviKpis(data.kpis);
     syncMatrixFromObligations();
     refreshSuiviUI();
@@ -1779,7 +1836,6 @@ function openTrackedTypeModal(id){
   document.getElementById('f-tracked-nom').value = t ? t.nom : '';
   document.getElementById('f-tracked-periodicite').value = t ? (t.periodicite || 'libre') : 'trimestrielle';
   document.getElementById('f-tracked-organisme').value = t ? (t.organisme_defaut || '') : 'DGI';
-  document.getElementById('f-tracked-deadline').value = t && t.dateLimite ? toISOInput(t.dateLimite) : '';
   openModal('modalTrackedType');
 }
 async function submitTrackedType(){
@@ -1789,7 +1845,6 @@ async function submitTrackedType(){
     nom,
     periodicite: document.getElementById('f-tracked-periodicite').value || 'libre',
     organisme_defaut: document.getElementById('f-tracked-organisme').value || null,
-    date_limite: document.getElementById('f-tracked-deadline').value || null,
   };
   try{
     let data;
@@ -1799,7 +1854,6 @@ async function submitTrackedType(){
       const front = {
         id: data.trackedDocType.id,
         nom: data.trackedDocType.nom,
-        dateLimite: data.trackedDocType.date_limite ? new Date(data.trackedDocType.date_limite + 'T00:00:00') : null,
         periodicite: data.trackedDocType.periodicite || 'libre',
         organisme_defaut: data.trackedDocType.organisme_defaut || null,
       };
@@ -1809,7 +1863,6 @@ async function submitTrackedType(){
       trackedDocTypes.push({
         id: data.trackedDocType.id,
         nom: data.trackedDocType.nom,
-        dateLimite: data.trackedDocType.date_limite ? new Date(data.trackedDocType.date_limite + 'T00:00:00') : null,
         periodicite: data.trackedDocType.periodicite || 'libre',
         organisme_defaut: data.trackedDocType.organisme_defaut || null,
       });
@@ -1817,7 +1870,7 @@ async function submitTrackedType(){
     trackedDocTypes.sort((a,b)=> a.nom.localeCompare(b.nom, 'fr'));
     closeModal('modalTrackedType');
     editTrackedTypeId = null;
-    renderTrackedDocList(); renderTrackedDeadlineList(); renderDeclarations(); renderObligationsList();
+    renderTrackedDocList(); renderDeclarations(); renderObligationsList();
   }catch(e){ alert(e.message); }
 }
 async function removeTrackedDocType(id){
@@ -1830,7 +1883,7 @@ async function removeTrackedDocType(id){
     obligations = obligations.filter(o=>Number(o.tracked_doc_type_id)!==Number(id));
     syncMatrixFromObligations();
     refreshSuiviUI();
-    renderTrackedDocList(); renderTrackedDeadlineList();
+    renderTrackedDocList();
   }catch(e){ alert(e.message); }
 }
 function renderTrackedDocList(){
@@ -1842,14 +1895,13 @@ function renderTrackedDocList(){
         <td class="cell-strong">${t.nom}</td>
         <td>${periodiciteLabels[t.periodicite] || t.periodicite || 'Libre'}</td>
         <td>${t.organisme_defaut || '—'}</td>
-        <td>${t.dateLimite ? fmtFR(t.dateLimite) : '—'}</td>
         <td>
           <div class="row-actions">
             <button class="mini-btn" title="Modifier" onclick="openTrackedTypeModal(${t.id})"><svg><use href="#i-edit"/></svg></button>
             <button class="mini-btn" title="Supprimer" onclick="removeTrackedDocType(${t.id})"><svg><use href="#i-x"/></svg></button>
           </div>
         </td>
-      </tr>`).join('') : `<tr><td colspan="5" class="empty">Aucun type. Lancez le seeder Cameroun ou ajoutez un type.</td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="4" class="empty">Aucun type. Lancez le seeder Cameroun ou ajoutez un type.</td></tr>`;
     return;
   }
   el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map(t => `
@@ -1861,25 +1913,7 @@ function renderTrackedDocList(){
   `).join('') : `<span style="font-size:12px;color:var(--text-400);">Aucun type d'obligation configuré.</span>`;
 }
 function renderTrackedDeadlineList(){
-  const el = document.getElementById('trackedDeadlineList');
-  if(!el) return;
-  el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map(t => `
-    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:1px solid var(--line);border-radius:9px;flex-wrap:wrap;">
-      <span class="cell-strong" style="flex:1;">${t.nom}</span>
-      <span style="font-size:11.5px;color:var(--text-400);">${periodiciteLabels[t.periodicite]||'Libre'} · ${t.organisme_defaut||'—'}</span>
-      <input type="date" value="${toISOInput(t.dateLimite)}" onchange="setTrackedDeadline(${t.id}, this.value)">
-      <button class="mini-btn" title="Modifier" onclick="openTrackedTypeModal(${t.id})"><svg><use href="#i-edit"/></svg></button>
-    </div>
-  `).join('') : `<span style="font-size:12px;color:var(--text-400);">Configurez les types depuis Documents (ou seed Cameroun).</span>`;
-}
-async function setTrackedDeadline(id, value){
-  const type = findTrackedDocType(id);
-  try{
-    const data = await apiUsers(`/tracked-doc-types/${id}/deadline`, 'PATCH', { date_limite: value || null });
-    type.dateLimite = data.trackedDocType.date_limite
-      ? new Date(data.trackedDocType.date_limite + 'T00:00:00') : null;
-    refreshSuiviUI();
-  }catch(e){ alert(e.message); renderTrackedDeadlineList(); }
+  /* Bloc dates limites par type retiré — échéance gérée sur chaque obligation. */
 }
 function autoLinkTrackedDoc(doc){
   if(doc.obligation_id){
@@ -1911,7 +1945,7 @@ function renderComplianceList(){
     </div>`).join('') : `<div style="font-size:12.5px;color:var(--green);display:flex;align-items:center;gap:8px;"><svg style="width:15px;height:15px;"><use href="#i-check"/></svg>Tous les contribuables suivis sont en règle.</div>`;
 }
 
-['oblSearch','oblFilterAnnee','oblFilterPeriode','oblFilterType','oblFilterOrg','oblFilterStatut','oblFilterEcheance','oblFilterPiece'].forEach(id=>{
+['oblSearch','oblFilterContrib','oblFilterAnnee','oblFilterPeriode','oblFilterType','oblFilterOrg','oblFilterStatut','oblFilterEcheance','oblFilterPiece'].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener(el.tagName==='INPUT'?'input':'change', renderObligationsList);
 });

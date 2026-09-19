@@ -15,7 +15,6 @@ class CreateTrackedDocTypesTable extends Migration
         Schema::create('tracked_doc_types', function (Blueprint $table) {
             $table->increments('id');
             $table->string('nom')->unique();
-            $table->date('date_limite')->nullable();
             $table->timestamps();
         });
     }

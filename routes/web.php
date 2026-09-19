@@ -118,6 +118,8 @@ Route::middleware('auth')->group(function () {
 
     // ---- Déclaration ----
     Route::get('/declarations', 'DeclarationController@page')->name('declarations.index');
+    Route::get('/declarations/types', 'DeclarationController@typesPage')->name('declarations.types');
+    Route::post('/obligations/{id}/renew', 'DeclarationController@renewObligation');
 
     // ---- Notifications ----
     Route::get('/notifications', 'NotificationController@index')->name('notifications.index');
