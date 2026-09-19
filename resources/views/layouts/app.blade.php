@@ -832,16 +832,23 @@ applyRole(authUser.role || 'admin');
 document.getElementById('userNameLabel').textContent = authUser.name;
 document.getElementById('userAvatar').textContent = initials(authUser.name);
 
-document.getElementById('menuToggle').addEventListener('click', ()=>document.getElementById('sidebar').classList.toggle('open'));
+const menuToggleBtn = document.getElementById('menuToggle');
+if(menuToggleBtn) menuToggleBtn.addEventListener('click', ()=>{
+  const sidebar = document.getElementById('sidebar');
+  if(sidebar) sidebar.classList.toggle('open');
+});
 
 /* ================= MODE SOMBRE ================= */
 function applyDarkMode(on){
   document.body.classList.toggle('dark', on);
-  document.querySelector('#darkModeIcon use').setAttribute('href', on ? '#i-sun' : '#i-moon');
-  document.getElementById('darkModeBtn').title = on ? 'Passer en mode clair' : 'Passer en mode sombre';
+  const darkModeIconUse = document.querySelector('#darkModeIcon use');
+  if(darkModeIconUse) darkModeIconUse.setAttribute('href', on ? '#i-sun' : '#i-moon');
+  const darkModeBtn = document.getElementById('darkModeBtn');
+  if(darkModeBtn) darkModeBtn.title = on ? 'Passer en mode clair' : 'Passer en mode sombre';
   try{ localStorage.setItem('fiscaltrack-dark', on ? '1' : '0'); }catch(e){}
 }
-document.getElementById('darkModeBtn').addEventListener('click', ()=>{
+const darkModeBtnEl = document.getElementById('darkModeBtn');
+if(darkModeBtnEl) darkModeBtnEl.addEventListener('click', ()=>{
   applyDarkMode(!document.body.classList.contains('dark'));
 });
 (function(){
@@ -857,7 +864,8 @@ function updateFullscreenIcon(){
   use.setAttribute('href', on ? '#i-compress' : '#i-expand');
   document.getElementById('fullscreenBtn').title = on ? 'Quitter le plein écran' : 'Plein écran (F11)';
 }
-document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+if(fullscreenBtn) fullscreenBtn.addEventListener('click', ()=>{
   if(!document.fullscreenElement){
     document.documentElement.requestFullscreen().catch(()=>{});
   } else {
@@ -873,13 +881,22 @@ function toggleDropdown(id, others){
   others.forEach(o=>document.getElementById(o).classList.remove('open'));
   el.classList.toggle('open', willOpen);
 }
-document.getElementById('notifBtn').addEventListener('click', e=>{e.stopPropagation();toggleDropdown('notifDropdown',['userDropdown']);});
-document.getElementById('userBtn').addEventListener('click', e=>{e.stopPropagation();toggleDropdown('userDropdown',['notifDropdown']);});
-document.addEventListener('click', ()=>{document.getElementById('notifDropdown').classList.remove('open');document.getElementById('userDropdown').classList.remove('open');});
+const notifBtn = document.getElementById('notifBtn');
+if(notifBtn) notifBtn.addEventListener('click', e=>{e.stopPropagation();toggleDropdown('notifDropdown',['userDropdown']);});
+const userBtn = document.getElementById('userBtn');
+if(userBtn) userBtn.addEventListener('click', e=>{e.stopPropagation();toggleDropdown('userDropdown',['notifDropdown']);});
+document.addEventListener('click', ()=>{
+  const notifDropdown = document.getElementById('notifDropdown');
+  const userDropdown = document.getElementById('userDropdown');
+  if(notifDropdown) notifDropdown.classList.remove('open');
+  if(userDropdown) userDropdown.classList.remove('open');
+});
 
-document.getElementById('logoutBtn').addEventListener('click', ()=>{
+const logoutBtn = document.getElementById('logoutBtn');
+if(logoutBtn) logoutBtn.addEventListener('click', ()=>{
+  const logoutForm = document.getElementById('logout-form');
   if(confirm('Voulez-vous vraiment vous déconnecter ?')){
-    document.getElementById('logout-form').submit();
+    if(logoutForm) logoutForm.submit();
   }
 });
 
@@ -887,16 +904,22 @@ document.getElementById('logoutBtn').addEventListener('click', ()=>{
 const notifIcons = {warn:'i-alert', late:'i-alert', ok:'i-check'};
 function renderNotifications(){
   const unreadCount = notifications.filter(n=>n.unread).length;
-  document.getElementById('notifDot').style.display = unreadCount ? 'block' : 'none';
-  document.getElementById('navNotifBadge').textContent = unreadCount;
-  document.getElementById('navNotifBadge').style.display = unreadCount ? 'flex' : 'none';
+  const notifDot = document.getElementById('notifDot');
+  if(notifDot) notifDot.style.display = unreadCount ? 'block' : 'none';
+
+  const navBadge = document.getElementById('navNotifBadge');
+  if(navBadge){
+    navBadge.textContent = unreadCount;
+    navBadge.style.display = unreadCount ? 'flex' : 'none';
+  }
 
   const build = list => notifications.map(n=>`
     <div class="notif-item ${n.tone} ${n.unread?'unread':''}">
       <div class="ic"><svg><use href="#${notifIcons[n.tone]}"/></svg></div>
       <div class="txt"><b>${n.title}</b><br>${n.text}<div class="when">${n.when}</div></div>
     </div>`).join('');
-  document.getElementById('notifList').innerHTML = build();
+  const notifList = document.getElementById('notifList');
+  if(notifList) notifList.innerHTML = build();
   const full = document.getElementById('notifListFull');
   if(full) full.innerHTML = build();
 }
@@ -904,8 +927,10 @@ function markAllRead(){
   notifications.forEach(n=>{ notifReadState[n.key]=true; });
   refreshNotifications();
 }
-document.getElementById('markAllRead').addEventListener('click', markAllRead);
-document.getElementById('markAllReadSection').addEventListener('click', markAllRead);
+const markAllReadBtn = document.getElementById('markAllRead');
+if(markAllReadBtn) markAllReadBtn.addEventListener('click', markAllRead);
+const markAllReadSectionBtn = document.getElementById('markAllReadSection');
+if(markAllReadSectionBtn) markAllReadSectionBtn.addEventListener('click', markAllRead);
 
 function renderTimeline(){
   if(!document.getElementById('timelineList')) return;
@@ -1174,8 +1199,14 @@ function exportContribuablesPDF(){
   setTimeout(()=>{ window.print(); }, 50);
   setTimeout(restore, 4000); // filet de sécurité si 'afterprint' ne se déclenche pas
 }
-['contribSearch'].forEach(id=>document.getElementById(id).addEventListener('input', renderContribuables));
-['contribFilterCat','contribFilterRegime'].forEach(id=>document.getElementById(id).addEventListener('change', renderContribuables));
+['contribSearch'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('input', renderContribuables);
+});
+['contribFilterCat','contribFilterRegime'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('change', renderContribuables);
+});
 
 /* ================= RENDER: DOCUMENTS ================= */
 function renderDocuments(){
@@ -1237,7 +1268,8 @@ function viewDocument(i){
   }
   openModal('modalDocumentView');
 }
-document.getElementById('fiche-doc-download-btn').addEventListener('click', ()=>{
+const ficheDocDownloadBtn = document.getElementById('fiche-doc-download-btn');
+if(ficheDocDownloadBtn) ficheDocDownloadBtn.addEventListener('click', ()=>{
   if(ficheDocIndex===null) return;
   const d = documents[ficheDocIndex];
   if(d.fileUrl){
@@ -1249,11 +1281,15 @@ document.getElementById('fiche-doc-download-btn').addEventListener('click', ()=>
     alert("Aucun fichier numérique n'a été associé à ce document.");
   }
 });
-document.getElementById('docSearch').addEventListener('input', renderDocuments);
-document.getElementById('docFilterType').addEventListener('change', renderDocuments);
+const docSearchInput = document.getElementById('docSearch');
+if(docSearchInput) docSearchInput.addEventListener('input', renderDocuments);
+const docFilterType = document.getElementById('docFilterType');
+if(docFilterType) docFilterType.addEventListener('change', renderDocuments);
 function resetDocuments(){
-  document.getElementById('docSearch').value='';
-  document.getElementById('docFilterType').selectedIndex=0;
+  const search = document.getElementById('docSearch');
+  const filter = document.getElementById('docFilterType');
+  if(search) search.value='';
+  if(filter) filter.selectedIndex=0;
   renderDocuments();
 }
 
@@ -1299,9 +1335,11 @@ async function deleteArchivedDocument(i){
     renderArchives();
   }catch(e){ alert(e.message); }
 }
-document.getElementById('archiveSearch').addEventListener('input', renderArchives);
+const archiveSearchInput = document.getElementById('archiveSearch');
+if(archiveSearchInput) archiveSearchInput.addEventListener('input', renderArchives);
 function resetArchives(){
-  document.getElementById('archiveSearch').value='';
+  const archiveSearch = document.getElementById('archiveSearch');
+  if(archiveSearch) archiveSearch.value='';
   renderArchives();
 }
 
@@ -1477,22 +1515,24 @@ async function removeTrackedDocType(id){
 function renderTrackedDocList(){
   const el = document.getElementById('trackedDocList');
   if(!el) return;
-  el.innerHTML = trackedDocTypes.length ? trackedDocTypes..map(t=>
+  el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map(t => `
     <span class="tag" style="padding:7px 10px;">
       ${t.nom}
       <button class="mini-btn" style="width:18px;height:18px;margin-left:2px;" title="Retirer" onclick="removeTrackedDocType(${t.id})"><svg style="width:11px;height:11px"><use href="#i-x"/></svg></button>
-    </span>`).join('') : `<span style="font-size:12px;color:var(--text-400);">Aucun document à suivre configuré pour le moment.</span>`;
+    </span>
+  `).join('') : `<span style="font-size:12px;color:var(--text-400);">Aucun document à suivre configuré pour le moment.</span>`;
 }
 
 /* ---- Échéances des documents à suivre (écran Déclaration) ---- */
- function renderTrackedDeadlineList(){
+function renderTrackedDeadlineList(){
   const el = document.getElementById('trackedDeadlineList');
   if(!el) return;
-  el.innerHTML = trackedDocTypes.length ? trackedDocTypes..map(t=>`
+  el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map(t => `
     <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:1px solid var(--line);border-radius:9px;">
       <span class="cell-strong" style="flex:1;">${t.nom}</span>
       <input type="date" value="${toISOInput(t.dateLimite)}" onchange="setTrackedDeadline(${t.id}, this.value)">
-    </div>`).join('') : `<span style="font-size:12px;color:var(--text-400);">Configurez d'abord des documents à suivre depuis l'écran Documents.</span>`;
+    </div>
+  `).join('') : `<span style="font-size:12px;color:var(--text-400);">Configurez d'abord des documents à suivre depuis l'écran Documents.</span>`;
 }
 async function setTrackedDeadline(id, value){
   const type = findTrackedDocType(id);
@@ -1535,12 +1575,19 @@ function renderComplianceList(){
     </div>`).join('') : `<div style="font-size:12.5px;color:var(--green);display:flex;align-items:center;gap:8px;"><svg style="width:15px;height:15px;"><use href="#i-check"/></svg>Tous les contribuables suivis sont en règle.</div>`;
 }
 
-document.getElementById('declSearch').addEventListener('input', renderDeclarations);
-['declFilterOrg','declFilterStatut'].forEach(id=>document.getElementById(id).addEventListener('change', renderDeclarations));
+const declSearchInput = document.getElementById('declSearch');
+if(declSearchInput) declSearchInput.addEventListener('input', renderDeclarations);
+['declFilterOrg','declFilterStatut'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('change', renderDeclarations);
+});
 function resetDeclarations(){
-  document.getElementById('declSearch').value='';
-  document.getElementById('declFilterOrg').selectedIndex=0;
-  document.getElementById('declFilterStatut').selectedIndex=0;
+  const declSearch = document.getElementById('declSearch');
+  const declFilterOrg = document.getElementById('declFilterOrg');
+  const declFilterStatut = document.getElementById('declFilterStatut');
+  if(declSearch) declSearch.value='';
+  if(declFilterOrg) declFilterOrg.selectedIndex=0;
+  if(declFilterStatut) declFilterStatut.selectedIndex=0;
   renderDeclarations();
 }
 
@@ -1601,9 +1648,11 @@ async function toggleUserStatut(id){
     renderUsers();
   }catch(e){ alert(e.message); }
 }
-document.getElementById('userSearch').addEventListener('input', renderUsers);
+const userSearchInput = document.getElementById('userSearch');
+if(userSearchInput) userSearchInput.addEventListener('input', renderUsers);
 function resetUsers(){
-  document.getElementById('userSearch').value='';
+  const userSearch = document.getElementById('userSearch');
+  if(userSearch) userSearch.value='';
   renderUsers();
 }
 async function reloadUsers(){
@@ -1618,6 +1667,19 @@ async function reloadUsers(){
 
 /* ---- Contribuables : ajout / modification / consultation ---- */
 function fillContribForm(c){
+  const fraisPaiement = c.fraisPaiement ?? c.frais_paiement ?? '';
+  const fsPaye = c.fsPaye ?? c.fs_paye ?? '';
+  const fsNonPaye = c.fsNonPaye ?? c.fs_non_paye ?? '';
+  const aiIgs = c.aiIgs ?? c.ai_igs ?? '';
+  const aiBail = c.aiBail ?? c.ai_bail ?? '';
+  const aiPrecompte = c.aiPrecompte ?? c.ai_precompte ?? '';
+  const qIgs = c.qIgs ?? c.q_igs ?? '';
+  const qBail = c.qBail ?? c.q_bail ?? '';
+  const qPrecompte = c.qPrecompte ?? c.q_precompte ?? '';
+  const acfIgs = c.acfIgs ?? c.acf_igs ?? '';
+  const acfBail = c.acfBail ?? c.acf_bail ?? '';
+  const acfPrecompte = c.acfPrecompte ?? c.acf_precompte ?? '';
+
   document.getElementById('f-contrib-nom').value = c.nom||'';
   document.getElementById('f-contrib-niu').value = c.niu==='—'?'':(c.niu||'');
   document.getElementById('f-contrib-pass').value = c.pass==='—'?'':(c.pass||'');
@@ -1631,23 +1693,23 @@ function fillContribForm(c){
   document.getElementById('f-contrib-bail').value = c.bail||'';
   document.getElementById('f-contrib-precompte').value = c.precompte||'';
   document.getElementById('f-contrib-timbre').value = c.timbre||'';
-  document.getElementById('f-contrib-fraispaiement').value = c.frais_paiement||'';
+  document.getElementById('f-contrib-fraispaiement').value = fraisPaiement;
   document.getElementById('f-contrib-t1').value = c.t1||'';
   document.getElementById('f-contrib-t2').value = c.t2||'';
   document.getElementById('f-contrib-t3').value = c.t3||'';
   document.getElementById('f-contrib-t4').value = c.t4||'';
   document.getElementById('f-contrib-tdl').value = c.tdl||'';
-  document.getElementById('f-contrib-fspaye').value = c.fs_paye||'';
-  document.getElementById('f-contrib-fsnonpaye').value = c.fs_non_paye||'';
-  document.getElementById('f-contrib-aiigs').value = c.ai_igs||'';
-  document.getElementById('f-contrib-aibail').value = c.ai_bail||'';
-  document.getElementById('f-contrib-aiprecompte').value = c.ai_precompte||'';
-  document.getElementById('f-contrib-qigs').value = c.q_igs||'';
-  document.getElementById('f-contrib-qbail').value = c.q_bail||'';
-  document.getElementById('f-contrib-qprecompte').value = c.q_precompte||'';
-  document.getElementById('f-contrib-acfigs').value = c.acf_igs||'';
-  document.getElementById('f-contrib-acfbail').value = c.acf_bail||'';
-  document.getElementById('f-contrib-acfprecompte').value = c.acf_precompte||'';
+  document.getElementById('f-contrib-fspaye').value = fsPaye;
+  document.getElementById('f-contrib-fsnonpaye').value = fsNonPaye;
+  document.getElementById('f-contrib-aiigs').value = aiIgs;
+  document.getElementById('f-contrib-aibail').value = aiBail;
+  document.getElementById('f-contrib-aiprecompte').value = aiPrecompte;
+  document.getElementById('f-contrib-qigs').value = qIgs;
+  document.getElementById('f-contrib-qbail').value = qBail;
+  document.getElementById('f-contrib-qprecompte').value = qPrecompte;
+  document.getElementById('f-contrib-acfigs').value = acfIgs;
+  document.getElementById('f-contrib-acfbail').value = acfBail;
+  document.getElementById('f-contrib-acfprecompte').value = acfPrecompte;
 }
 function clearContribForm(){
   document.querySelectorAll('#ov-modalContribuable input').forEach(inp=>inp.value='');
