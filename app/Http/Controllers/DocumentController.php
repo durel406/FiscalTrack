@@ -1,37 +1,34 @@
 <?php
-/*
-|--------------------------------------------------------------------------
-| app/Http/Controllers/DocumentController.php
-|--------------------------------------------------------------------------
-*/
 
 namespace App\Http\Controllers;
 
 use App\Document;
 use App\Contribuable;
-use App\TrackedDocType;          // ← ajouter
-use App\DeclarationStatut; 
+use App\TrackedDocType;
+use App\Obligation;
+use App\Services\FiscalSuiviService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
-    public function __construct()
+    protected $suivi;
+
+    public function __construct(FiscalSuiviService $suivi)
     {
         $this->middleware('auth');
+        $this->suivi = $suivi;
     }
 
-    /** Page HTML "Documents (GED)" */
     public function page()
     {
-        $data = DeclarationController::donneesSuivi();   // contribuables + trackedDocTypes + statuts
+        $data = DeclarationController::donneesSuivi();
         $data['initialDocuments'] = Document::with('contribuable')->actifs()->latest()->get()
                                         ->map(function ($d) { return $d->toFront(); })->values();
- 
+
         return view('documents.index', $data);
     }
 
-    /** Page HTML "Archives" */
     public function archivesPage()
     {
         return view('archives.index', [
@@ -41,7 +38,6 @@ class DocumentController extends Controller
         ]);
     }
 
-    /** Création d'un document (multipart : champs + fichier éventuel) */
     public function store(Request $request)
     {
         $data = $this->validated($request);
@@ -50,26 +46,24 @@ class DocumentController extends Controller
         $doc->fill($this->fields($data));
         $this->attachFile($request, $doc);
         $doc->save();
-        $this->autoLierDocumentSuivi($doc);
+        $this->lierObligation($doc, $data);
 
         return response()->json(['document' => $doc->load('contribuable')->toFront()]);
     }
 
-    /** Modification d'un document ; si aucun fichier n'est envoyé, l'ancien est conservé */
     public function update(Request $request, $id)
     {
         $doc = Document::findOrFail($id);
         $data = $this->validated($request);
 
         $doc->fill($this->fields($data));
-        $this->attachFile($request, $doc);   // remplace le fichier seulement si un nouveau est fourni
+        $this->attachFile($request, $doc);
         $doc->save();
-        $this->autoLierDocumentSuivi($doc);
+        $this->lierObligation($doc, $data);
 
         return response()->json(['document' => $doc->load('contribuable')->toFront()]);
     }
 
-    /** Archiver : on ne supprime rien, on horodate simplement */
     public function archive($id)
     {
         $doc = Document::findOrFail($id);
@@ -79,7 +73,6 @@ class DocumentController extends Controller
         return response()->json(['document' => $doc->load('contribuable')->toFront()]);
     }
 
-    /** Restaurer un document archivé */
     public function restore($id)
     {
         $doc = Document::findOrFail($id);
@@ -89,7 +82,6 @@ class DocumentController extends Controller
         return response()->json(['document' => $doc->load('contribuable')->toFront()]);
     }
 
-    /** Suppression définitive : la ligne ET le fichier sur le disque */
     public function destroy($id)
     {
         $doc = Document::findOrFail($id);
@@ -102,7 +94,6 @@ class DocumentController extends Controller
         return response()->json(['success' => true]);
     }
 
-    /** Téléchargement / aperçu du fichier joint */
     public function fichier($id)
     {
         $doc = Document::findOrFail($id);
@@ -117,8 +108,6 @@ class DocumentController extends Controller
         );
     }
 
-    // ------------------------------------------------------------------
-
     private function validated(Request $request)
     {
         return $request->validate([
@@ -127,7 +116,7 @@ class DocumentController extends Controller
             'fournisseur'     => 'nullable|string|max:255',
             'montant'         => 'nullable|integer|min:0',
             'contribuable_id' => 'nullable|integer|exists:contribuables,id',
-            // 10 Mo max, formats autorisés par le cahier des charges + quelques extras utiles
+            'obligation_id'   => 'nullable|integer|exists:obligations,id',
             'fichier'         => 'nullable|file|max:10240|mimes:pdf,png,jpg,jpeg',
         ]);
     }
@@ -140,16 +129,16 @@ class DocumentController extends Controller
             'fournisseur'     => isset($data['fournisseur']) ? $data['fournisseur'] : null,
             'montant'         => isset($data['montant']) ? $data['montant'] : 0,
             'contribuable_id' => isset($data['contribuable_id']) ? $data['contribuable_id'] : null,
+            'obligation_id'   => isset($data['obligation_id']) ? $data['obligation_id'] : null,
         ];
     }
 
     private function attachFile(Request $request, Document $doc)
     {
         if (! $request->hasFile('fichier')) {
-            return; // aucun nouveau fichier : on garde celui déjà enregistré
+            return;
         }
 
-        // on supprime l'ancien fichier pour ne pas laisser de fichiers orphelins
         if ($doc->fichier_path && Storage::disk('public')->exists($doc->fichier_path)) {
             Storage::disk('public')->delete($doc->fichier_path);
         }
@@ -159,24 +148,53 @@ class DocumentController extends Controller
         $doc->fichier_nom  = $file->getClientOriginalName();
         $doc->fichier_mime = $file->getClientMimeType();
     }
-    private function autoLierDocumentSuivi(Document $doc)
+
+    /**
+     * Rattache le document à une obligation existante (explicite ou déduite).
+     * Ne crée plus d'obligation « silencieuse » : l'obligation doit exister.
+     */
+    private function lierObligation(Document $doc, array $data)
     {
+        if (! empty($data['obligation_id'])) {
+            $obligation = Obligation::find($data['obligation_id']);
+            if ($obligation) {
+                $doc->obligation_id = $obligation->id;
+                if (! $doc->contribuable_id) {
+                    $doc->contribuable_id = $obligation->contribuable_id;
+                }
+                $doc->save();
+                $this->suivi->syncNotifications();
+            }
+
+            return;
+        }
+
         if (! $doc->contribuable_id || ! $doc->type) {
             return;
         }
- 
+
         $type = TrackedDocType::whereRaw('LOWER(TRIM(nom)) = ?', [mb_strtolower(trim($doc->type))])->first();
         if (! $type) {
-            return; // ce type de document n'est pas suivi : rien à faire
+            return;
         }
- 
-        // firstOrCreate : on ne réinitialise pas un statut déjà saisi par l'utilisateur
-        DeclarationStatut::firstOrCreate(
-            [
-                'contribuable_id'     => $doc->contribuable_id,
-                'tracked_doc_type_id' => $type->id,
-            ],
-            ['statut' => 'non_declare']
-        );
+
+        // Rattacher à l'obligation ouverte la plus urgente du même type / contribuable
+        $obligation = Obligation::where('contribuable_id', $doc->contribuable_id)
+            ->where('tracked_doc_type_id', $type->id)
+            ->whereNotIn('statut', [Obligation::STATUT_JUSTIFICATIF])
+            ->orderByRaw("CASE WHEN date_limite IS NULL THEN 1 ELSE 0 END")
+            ->orderBy('date_limite')
+            ->first();
+
+        if ($obligation) {
+            $doc->obligation_id = $obligation->id;
+            $doc->save();
+            if ($obligation->statut === Obligation::STATUT_DECLARE) {
+                $obligation->statut = Obligation::STATUT_JUSTIFICATIF;
+                $obligation->save();
+            }
+            $this->suivi->mirrorDeclarationStatut($obligation);
+            $this->suivi->syncNotifications();
+        }
     }
 }

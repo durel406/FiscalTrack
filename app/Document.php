@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 class Document extends Model
 {
     protected $fillable = [
-        'nom', 'type', 'fournisseur', 'montant', 'contribuable_id',
+        'nom', 'type', 'fournisseur', 'montant', 'contribuable_id', 'obligation_id',
         'fichier_path', 'fichier_nom', 'fichier_mime', 'archived_at',
     ];
 
@@ -22,6 +22,11 @@ class Document extends Model
     public function contribuable()
     {
         return $this->belongsTo(Contribuable::class);
+    }
+
+    public function obligation()
+    {
+        return $this->belongsTo(Obligation::class);
     }
 
     /** Documents actifs (non archivés) */
@@ -48,6 +53,7 @@ class Document extends Model
             'nom'            => $this->nom,
             'type'           => $this->type,
             'contribuable_id'=> $this->contribuable_id,
+            'obligation_id'  => $this->obligation_id,
             'contrib'        => $this->contribuable ? $this->contribuable->nom : '—',
             'fournisseur'    => $this->fournisseur ?: '—',
             'montant'        => (int) $this->montant,

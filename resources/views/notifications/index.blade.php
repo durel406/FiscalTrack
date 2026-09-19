@@ -6,17 +6,19 @@
 @section('content')
     <section class="section" id="sec-notifications">
       <div class="section-head">
-        <div><h2>Notifications</h2><p>Alertes automatiques générées avant et après les dates d'échéance.</p></div>
-        <button class="btn btn-ghost" id="markAllReadSection">Tout marquer comme lu</button>
+        <div>
+          <h2>Notifications</h2>
+          <p>Alertes d'échéances fiscales (J−7, jour J, retard) — synchronisées par le scheduler FiscalTrack.</p>
+        </div>
+        <button class="btn btn-ghost" id="markAllReadSection" type="button">Tout marquer comme lu</button>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h3>Toutes les alertes</h3><div class="sub">Générées par le Scheduler FiscalTrack</div></div></div>
+        <div class="panel-head">
+          <div><h3>Toutes les alertes</h3><div class="sub">Une alerte = une obligation (contribuable × type × période)</div></div>
+        </div>
         <div class="notif-list" id="notifListFull" style="max-height:none;"></div>
       </div>
     </section>
-
-    <!-- ===== COMPTES ===== -->
-
 @endsection
 
 @push('scripts')

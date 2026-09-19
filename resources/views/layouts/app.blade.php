@@ -72,7 +72,9 @@ body.dark .btn-primary{filter:brightness(.95);}
 body.dark .avatar{filter:brightness(.95);}
 body.dark .lock-overlay{background:linear-gradient(190deg,#080d1c,var(--indigo-600));}
 body.dark .badge.b-inactive{background:#232c42;color:var(--text-600);}
-body.dark .overlay{background:rgba(2,6,16,.65);}
+body.compact-ui table td, body.compact-ui table th{padding-top:7px!important;padding-bottom:7px!important;}
+body.compact-ui .panel-head{padding-top:10px;padding-bottom:10px;}
+
 body{transition:background-color .2s ease, color .2s ease;}
 .panel,.modal,.appbar,.dropdown,.kpi{transition:background-color .2s ease, border-color .2s ease;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -626,8 +628,8 @@ th.sticky-col{z-index:5;}
 
     <!-- user dropdown -->
     <div class="dropdown user-dropdown" id="userDropdown" style="right:24px;width:200px;">
-      <button><svg><use href="#i-user"/></svg>Mon profil</button>
-      <button><svg><use href="#i-settings"/></svg>Paramètres</button>
+      <button type="button" id="profileMenuBtn"><svg><use href="#i-user"/></svg>Mon profil</button>
+      <button type="button" id="settingsMenuBtn"><svg><use href="#i-settings"/></svg>Paramètres</button>
       <hr>
       <button class="danger" id="logoutBtn" type="button"><svg><use href="#i-logout"/></svg>Se déconnecter</button>
     </div>
@@ -669,10 +671,9 @@ let documents = @json($initialDocuments ?? []);
 
 let archivedDocuments = @json($initialArchives ?? []);
 
-/* notifications est reconstruit dynamiquement par le moteur de notifications
-   (voir refreshNotifications) à partir des échéances des documents à suivre */
-let notifications = [];
-let notifReadState = {}; // clé notif -> true si déjà lue, pour conserver l'état entre deux recalculs
+/* notifications : chargées depuis app_notifications (serveur) puis resynchronisées */
+let notifications = (@json($initialNotifications ?? [])).slice();
+let notifReadState = {};
 
 const activity = [];
 
@@ -682,83 +683,95 @@ let editContribIndex = null;
 let editDocIndex = null;
 let editUserId = null;
 
-// let docIdCounter = 1;
+/* ---- Catalogue des types d'obligations (documents à suivre) ---- */
+let trackedDocTypes = (@json($initialTrackedDocTypes ?? [])).map(function(t){
+  return {
+    id: t.id,
+    nom: t.nom,
+    dateLimite: t.date_limite ? new Date(t.date_limite + 'T00:00:00') : null,
+    periodicite: t.periodicite || 'libre',
+    organisme_defaut: t.organisme_defaut || null
+  };
+});
 
-/* ---- Suivi des déclarations par documents à suivre ---- */
-/* Liste des types de documents à suivre, configurée depuis l'écran Documents.
-   Chaque entrée : { nom, dateLimite } — dateLimite assignée depuis l'écran Déclaration. */
-   let trackedDocTypes = (@json($initialTrackedDocTypes ?? [])).map(function(t){
-      return { id: t.id, nom: t.nom,
-               dateLimite: t.date_limite ? new Date(t.date_limite + 'T00:00:00') : null };
-    });
+/* Matrice héritée (miroir) — clé = contribuable_id||tracked_doc_type_id */
+let docStatusMatrix = {};
+(@json($initialDeclarationStatuts ?? [])).forEach(function(d){
+  docStatusMatrix[d.contribuable_id + '||' + d.tracked_doc_type_id] = { statut: d.statut };
+});
 
-/* Organisme rattaché à chaque contribuable dans le tableau des Déclaration. clé = nom du contribuable. */
-// let contribOrganisme = {};
-
-/* Statut de chaque intersection (contribuable × document à suivre).
-   clé = "NomContribuable||NomDocument" -> { statut: 'declare' | 'non_declare' | 'penalite' } */
-   let docStatusMatrix = {};
-    (@json($initialDeclarationStatuts ?? [])).forEach(function(d){
-      docStatusMatrix[d.contribuable_id + '||' + d.tracked_doc_type_id] = { statut: d.statut };
-    });
-/* Lien de vérification (site DGI ou CNPS) propre à chaque contribuable, saisi dans
-   l'écran Déclaration. Non modifiable tant qu'aucun document à suivre n'a été enregistré
-   pour ce contribuable. clé = nom du contribuable -> URL (string). */
+/* Source de vérité du suivi fiscal */
+let obligations = (@json($initialObligations ?? [])).slice();
+let suiviKpis = @json($suiviKpis ?? null);
 let contribVerifLink = {};
 
 /* ================= MOTEUR D'ÉCHÉANCES & NOTIFICATIONS ==================
-   Règles métier :
+   Règles métier (Cameroun / cabinet) :
    - Mensuelle      : échéance = le 15 de chaque mois.
-   - Trimestrielle  : échéance = 15 jours après la fin du trimestre civil
-                       (trimestres : Jan-Mar, Avr-Juin, Juil-Sep, Oct-Déc) ;
-                       mais le calendrier de rappel se cale sur la FIN du
-                       trimestre (et non sur l'échéance de paiement +15j).
-   - Annuelle       : 3 échéances fixes dans l'année : 28 février, 15 mars,
-                       30 juin.
-   Dans tous les cas, une notification est envoyée : une semaine avant la
-   date de référence (J-7), le jour J, et après (retard) — uniquement si le
-   statut de la déclaration n'est pas "Déclaré".
+   - Trimestrielle  : échéance = 15 jours après la fin du trimestre civil.
+   - Annuelle       : 15 mars (défaut cabinet).
+   Notifications serveur : J-7, J, retard — obligation non clôturée uniquement.
+   Une obligation ne peut être marquée déclarée / justificatif déposé SANS pièce GED.
 ========================================================================= */
 function pad2(n){ return String(n).padStart(2,'0'); }
 function fmtFR(d){ return d ? `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}` : '—'; }
 function toISOInput(d){ return d ? `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}` : ''; }
 function startOfDay(d){ const x=new Date(d); x.setHours(0,0,0,0); return x; }
-/* Construit la liste des notifications à partir des échéances des documents à suivre
-   (une échéance concerne tous les contribuables qui ne sont pas encore "Déclaré" pour ce document). */
-function buildNotifications(){
+function parseISODate(s){ return s ? new Date(s + 'T00:00:00') : null; }
+
+function findContrib(id){ return contribuables.find(c=>Number(c.id)===Number(id)); }
+function findTrackedDocType(id){ return trackedDocTypes.find(t=>Number(t.id)===Number(id)); }
+function findObligation(id){ return obligations.find(o=>Number(o.id)===Number(id)); }
+
+function syncMatrixFromObligations(){
+  docStatusMatrix = {};
+  obligations.forEach(o=>{
+    const key = o.contribuable_id + '||' + o.tracked_doc_type_id;
+    const closed = o.statut === 'declare' || o.statut === 'justificatif_depose';
+    docStatusMatrix[key] = { statut: closed ? 'declare' : 'non_declare' };
+  });
+}
+syncMatrixFromObligations();
+
+function applySuiviKpis(kpis){
+  if(kpis) suiviKpis = kpis;
+}
+
+async function refreshNotifications(){
+  try{
+    const res = await fetch('/api/notifications', { headers: { 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest' }});
+    if(res.ok){
+      const data = await res.json();
+      notifications = data.notifications || [];
+    }
+  }catch(e){ /* garde le snapshot serveur initial */ }
+  renderNotifications();
+}
+
+function buildNotificationsFromObligations(){
+  /* Fallback client si l'API n'est pas dispo */
   const today = startOfDay(new Date());
   const list = [];
-  trackedDocTypes.forEach(t=>{
-    if(!t.dateLimite) return;
-    const diff = Math.round((startOfDay(t.dateLimite) - today)/86400000);
-    if(diff > 7) return; // trop tôt pour notifier
-    const concerned = contribuables.filter(c=>{
-      const s = computeCellStatut(c.nom, t.nom);
-      return s==='non_declare' || s==='penalite';
-    });
-    if(!concerned.length) return; // tout le monde est déjà déclaré (ou aucun contribuable lié)
-    const who = `${t.nom} (${concerned.length} contribuable${concerned.length>1?'s':''} non déclaré${concerned.length>1?'s':''})`;
+  obligations.forEach(o=>{
+    if(o.statut === 'declare' || o.statut === 'justificatif_depose') return;
+    if(!o.date_limite) return;
+    const d = parseISODate(o.date_limite);
+    const diff = Math.round((startOfDay(d) - today)/86400000);
+    if(diff > 7) return;
     let tone, title, text;
     if(diff >= 1){
       tone='warn'; title='Échéance proche';
-      text = `${who} arrive à échéance le ${fmtFR(t.dateLimite)} (dans ${diff} jour${diff>1?'s':''}).`;
+      text = `${o.contribuable_nom} — ${o.type_nom} (${o.periode} ${o.annee}) dans ${diff} j.`;
     } else if(diff === 0){
       tone='warn'; title="Échéance aujourd'hui";
-      text = `${who} arrive à échéance aujourd'hui (${fmtFR(t.dateLimite)}).`;
+      text = `${o.contribuable_nom} — ${o.type_nom} (${o.periode} ${o.annee}) aujourd'hui.`;
     } else {
       tone='late'; title='Échéance dépassée';
-      const late = -diff;
-      text = `${who} en retard depuis ${late} jour${late>1?'s':''} (échéance du ${fmtFR(t.dateLimite)}).`;
+      text = `${o.contribuable_nom} — ${o.type_nom} en retard depuis ${-diff} j.`;
     }
-    const key = `${t.nom}|${t.dateLimite.getTime()}`;
-    list.push({ key, tone, title, text, when: fmtFR(t.dateLimite), unread: !notifReadState[key] });
+    list.push({ key:`obl:${o.id}`, tone, title, text, when: fmtFR(d), unread:true, obligation_id:o.id });
   });
-  list.sort((a,b)=> (a.tone==='late'?0:1) - (b.tone==='late'?0:1));
   return list;
-}
-function refreshNotifications(){
-  notifications = buildNotifications();
-  renderNotifications();
 }
 
 /* ================= NAV / SECTIONS ================= */
@@ -775,6 +788,8 @@ const sectionRoutes = {
   declarations:  @json(route('declarations.index')),
   notifications: @json(route('notifications.index')),
   comptes:       @json(route('comptes.index')),
+  profile:       @json(route('profile.index')),
+  settings:      @json(route('settings.index')),
 };
 function goTo(section){
   if(sectionRoutes[section]) window.location.href = sectionRoutes[section];
@@ -855,7 +870,21 @@ if(darkModeBtnEl) darkModeBtnEl.addEventListener('click', ()=>{
   let saved = false;
   try{ saved = localStorage.getItem('fiscaltrack-dark')==='1'; }catch(e){}
   applyDarkMode(saved);
+  try{
+    if(localStorage.getItem('fiscaltrack-compact')==='1') document.body.classList.add('compact-ui');
+  }catch(e){}
 })();
+
+const profileMenuBtn = document.getElementById('profileMenuBtn');
+if(profileMenuBtn) profileMenuBtn.addEventListener('click', e=>{
+  e.stopPropagation();
+  goTo('profile');
+});
+const settingsMenuBtn = document.getElementById('settingsMenuBtn');
+if(settingsMenuBtn) settingsMenuBtn.addEventListener('click', e=>{
+  e.stopPropagation();
+  goTo('settings');
+});
 
 /* ================= PLEIN ÉCRAN (F11) ================= */
 function updateFullscreenIcon(){
@@ -903,29 +932,54 @@ if(logoutBtn) logoutBtn.addEventListener('click', ()=>{
 /* ================= RENDER: NOTIFICATIONS ================= */
 const notifIcons = {warn:'i-alert', late:'i-alert', ok:'i-check'};
 function renderNotifications(){
-  const unreadCount = notifications.filter(n=>n.unread).length;
+  if(!notifications.length && obligations.length){
+    notifications = buildNotificationsFromObligations();
+  }
+  let list = notifications.slice();
+  try{
+    if(localStorage.getItem('fiscaltrack-notif-late')==='0'){
+      list = list.filter(n=>n.tone!=='late');
+    }
+  }catch(e){}
+  const showBadge = (function(){
+    try{ return localStorage.getItem('fiscaltrack-notif-badge')!=='0'; }catch(e){ return true; }
+  })();
+  const unreadCount = list.filter(n=>n.unread).length;
   const notifDot = document.getElementById('notifDot');
-  if(notifDot) notifDot.style.display = unreadCount ? 'block' : 'none';
+  if(notifDot) notifDot.style.display = (showBadge && unreadCount) ? 'block' : 'none';
 
   const navBadge = document.getElementById('navNotifBadge');
   if(navBadge){
     navBadge.textContent = unreadCount;
-    navBadge.style.display = unreadCount ? 'flex' : 'none';
+    navBadge.style.display = (showBadge && unreadCount) ? 'flex' : 'none';
   }
 
-  const build = list => notifications.map(n=>`
-    <div class="notif-item ${n.tone} ${n.unread?'unread':''}">
-      <div class="ic"><svg><use href="#${notifIcons[n.tone]}"/></svg></div>
-      <div class="txt"><b>${n.title}</b><br>${n.text}<div class="when">${n.when}</div></div>
-    </div>`).join('');
+  const build = () => list.length ? list.map(n=>`
+    <div class="notif-item ${n.tone} ${n.unread?'unread':''}" ${n.obligation_id?`onclick="goTo('declarations')" style="cursor:pointer"`:''}>
+      <div class="ic"><svg><use href="#${notifIcons[n.tone]||'i-alert'}"/></svg></div>
+      <div class="txt"><b>${n.title}</b><br>${n.text}<div class="when">${n.when||''}</div></div>
+    </div>`).join('') : `<div class="empty" style="padding:16px;text-align:center;color:var(--text-400);font-size:12.5px;">Aucune alerte d'échéance pour le moment.</div>`;
   const notifList = document.getElementById('notifList');
   if(notifList) notifList.innerHTML = build();
   const full = document.getElementById('notifListFull');
   if(full) full.innerHTML = build();
 }
-function markAllRead(){
-  notifications.forEach(n=>{ notifReadState[n.key]=true; });
-  refreshNotifications();
+async function markAllRead(){
+  try{
+    const res = await fetch('/api/notifications/read-all', {
+      method:'POST',
+      headers:{ 'Accept':'application/json', 'X-CSRF-TOKEN': csrfToken, 'X-Requested-With':'XMLHttpRequest' }
+    });
+    if(res.ok){
+      const data = await res.json();
+      notifications = data.notifications || [];
+    } else {
+      notifications.forEach(n=>{ n.unread=false; });
+    }
+  }catch(e){
+    notifications.forEach(n=>{ n.unread=false; });
+  }
+  renderNotifications();
 }
 const markAllReadBtn = document.getElementById('markAllRead');
 if(markAllReadBtn) markAllReadBtn.addEventListener('click', markAllRead);
@@ -934,55 +988,65 @@ if(markAllReadSectionBtn) markAllReadSectionBtn.addEventListener('click', markAl
 
 function renderTimeline(){
   if(!document.getElementById('timelineList')) return;
-  const upcoming = trackedDocTypes
-    .filter(t=>t.dateLimite)
+  const open = obligations
+    .filter(o=> o.date_limite && o.statut !== 'declare' && o.statut !== 'justificatif_depose')
     .slice()
-    .sort((a,b)=> a.dateLimite - b.dateLimite)
-    .slice(0,5);
-  document.getElementById('timelineList').innerHTML = upcoming.length ? upcoming.map(t=>{
-    const echeance = t.dateLimite;
-    const months=['','JAN','FÉV','MAR','AVR','MAI','JUIN','JUIL','AOÛT','SEP','OCT','NOV','DÉC'];
-    const concerned = contribuables.map(c=>computeCellStatut(c.nom, t.nom)).filter(s=>s!=='aucun');
-    const penalites = concerned.filter(s=>s==='penalite').length;
-    const nonDeclares = concerned.filter(s=>s==='non_declare').length;
-    const declares = concerned.filter(s=>s==='declare').length;
-    const isLate = penalites>0;
-    const pct = isLate ? 100 : (concerned.length ? Math.round((declares/concerned.length)*100) : 30);
-    const color = isLate ? 'background:linear-gradient(90deg,#e07a7a,#d94c4c)' : '';
-    const summary = concerned.length
-      ? `${declares} déclaré${declares>1?'s':''} · ${nonDeclares} en attente · ${penalites} pénalité${penalites>1?'s':''}`
-      : 'Aucun contribuable lié pour le moment';
-    const worstBadge = isLate ? 'penalite' : (nonDeclares ? 'non_declare' : 'declare');
+    .sort((a,b)=> parseISODate(a.date_limite) - parseISODate(b.date_limite))
+    .slice(0,6);
+  const months=['','JAN','FÉV','MAR','AVR','MAI','JUIN','JUIL','AOÛT','SEP','OCT','NOV','DÉC'];
+  document.getElementById('timelineList').innerHTML = open.length ? open.map(o=>{
+    const echeance = parseISODate(o.date_limite);
+    const eff = o.statut_effectif || o.statut;
+    const badge = eff === 'penalite' ? 'penalite' : (eff === 'a_declarer' ? 'non_declare' : eff);
+    const piece = o.has_justificatif ? 'Pièce OK' : 'Pièce manquante';
     return `<div class="tl-row">
       <div class="tl-date"><div class="d">${pad2(echeance.getDate())}</div><div class="m">${months[echeance.getMonth()+1]}</div></div>
       <div>
-        <div class="tl-info"><b>${t.nom}</b><span>${summary}</span></div>
-        <div class="tl-bar" style="margin-top:6px;"><i style="width:${pct}%;${color}"></i></div>
+        <div class="tl-info"><b>${o.contribuable_nom}</b><span>${o.type_nom} · ${o.periode_label || o.periode} ${o.annee} · ${piece}</span></div>
+        <div class="tl-bar" style="margin-top:6px;"><i style="width:${eff==='penalite'?100:40}%;${eff==='penalite'?'background:linear-gradient(90deg,#e07a7a,#d94c4c)':''}"></i></div>
       </div>
-      <span class="badge ${badgeClass(worstBadge)}">${statutLabel(worstBadge)}</span>
+      <span class="badge ${badgeClass(badge === 'justificatif_depose' ? 'declare' : badge)}">${statutLabel(badge)}</span>
     </div>`;
-  }).join('') : `<div class="empty" style="padding:24px 0;text-align:center;color:var(--text-400);font-size:12.5px;">Aucune échéance à venir. Assignez une date limite à un document à suivre depuis l'écran Déclaration.</div>`;
+  }).join('') : `<div class="empty" style="padding:24px 0;text-align:center;color:var(--text-400);font-size:12.5px;">Aucune échéance ouverte. Créez des obligations depuis l'écran Déclaration.</div>`;
 }
 function renderFeed(){
   if(!document.getElementById('activityFeed')) return;
-  document.getElementById('activityFeed').innerHTML = activity.map(a=>`
+  const alerts = (notifications.length ? notifications : buildNotificationsFromObligations()).slice(0,8);
+  document.getElementById('activityFeed').innerHTML = alerts.length ? alerts.map(a=>`
     <div class="feed-item"><div class="feed-dot"></div>
-      <div><p><b>${a.who}</b> ${a.what}</p><time>${a.when}</time></div>
-    </div>`).join('');
+      <div><p><b>${a.title}</b> — ${a.text}</p><time>${a.when||''}</time></div>
+    </div>`).join('') : `<div class="empty" style="padding:24px;text-align:center;color:var(--text-400);font-size:12.5px;">Aucune alerte prioritaire.</div>`;
 }
 function renderKPIs(){
   if(!document.getElementById('kpiContribuables')) return;
-  document.getElementById('kpiContribuables').textContent = contribuables.filter(c=>c.statut==='active').length;
-  const allCells = [];
-  contribuables.forEach(c=> trackedDocTypes.forEach(t=>{
-    const s = computeCellStatut(c.nom, t.nom);
-    if(s!=='aucun') allCells.push(s);
-  }));
-  document.getElementById('kpiDeclarationsEnAttente').textContent = allCells.filter(s=>s!=='declare').length;
-  document.getElementById('kpiDocuments').textContent = documents.length;
-  const total = allCells.length;
-  const done = allCells.filter(s=>s==='declare').length;
-  document.getElementById('kpiConformite').textContent = total ? Math.round((done/total)*100)+'%' : '—';
+  const k = suiviKpis || {};
+  const open = obligations.filter(o=>o.statut!=='declare' && o.statut!=='justificatif_depose');
+  const retards = open.filter(o=>o.echeance_bucket==='retard' || o.statut_effectif==='penalite').length;
+  const proches = open.filter(o=>o.echeance_bucket==='proche' || o.echeance_bucket==='aujourdhui').length;
+  const sansPiece = open.filter(o=>!o.has_justificatif).length;
+  const cloturees = obligations.filter(o=>o.statut==='declare' || o.statut==='justificatif_depose').length;
+  const total = obligations.length;
+  const conf = total ? Math.round((cloturees/total)*100) : null;
+
+  setText('kpiContribuables', k.contribuables_actifs != null ? k.contribuables_actifs : contribuables.filter(c=>c.statut==='active').length);
+  setText('kpiDeclarationsEnAttente', k.obligations_en_attente != null ? k.obligations_en_attente : open.length);
+  setText('kpiRetards', k.obligations_en_retard != null ? k.obligations_en_retard : retards);
+  setText('kpiProches', k.obligations_proches != null ? (k.obligations_proches + (k.obligations_aujourdhui||0)) : proches);
+  setText('kpiSansPiece', k.sans_justificatif != null ? k.sans_justificatif : sansPiece);
+  setText('kpiDocuments', k.documents_ged != null ? k.documents_ged : documents.length);
+  setText('kpiConformite', (k.taux_conformite != null ? k.taux_conformite : conf) != null ? ((k.taux_conformite != null ? k.taux_conformite : conf)+'%') : '—');
+  setText('kpiCloturees', k.obligations_cloturees != null ? k.obligations_cloturees : cloturees);
+}
+function setText(id, val){
+  const el = document.getElementById(id);
+  if(el) el.textContent = val;
+}
+function renderObligationKpis(){
+  const open = obligations.filter(o=>o.statut!=='declare' && o.statut!=='justificatif_depose');
+  setText('declKpiAttente', open.length);
+  setText('declKpiRetard', open.filter(o=>o.echeance_bucket==='retard' || o.statut_effectif==='penalite').length);
+  setText('declKpiProches', open.filter(o=>o.echeance_bucket==='proche' || o.echeance_bucket==='aujourdhui').length);
+  setText('declKpiSansPiece', open.filter(o=>!o.has_justificatif).length);
 }
 
 /* ================= CALENDRIER DES ÉCHÉANCES (dashboard) ================= */
@@ -999,9 +1063,10 @@ function getMonthMatrix(year, month){
 }
 function getEcheancesForMonth(year, month){
   const map = {};
-  trackedDocTypes.forEach(t=>{
-    if(!t.dateLimite) return;
-    const echeance = t.dateLimite;
+  obligations.forEach(t=>{
+    if(!t.date_limite) return;
+    if(t.statut === 'declare' || t.statut === 'justificatif_depose') return;
+    const echeance = parseISODate(t.date_limite);
     if(echeance.getFullYear()===year && echeance.getMonth()===month){
       (map[echeance.getDate()] = map[echeance.getDate()]||[]).push(t);
     }
@@ -1038,27 +1103,46 @@ function showCalendarDay(day){
   const items = getEcheancesForMonth(year, month)[day] || [];
   document.getElementById('calendarDetails').innerHTML = items.length ? `
     <div class="cal-details-head">Échéances du ${pad2(day)}/${pad2(month+1)}/${year}</div>
-    ${items.map(t=>{
-      const concerned = contribuables.map(c=>computeCellStatut(c.nom, t.nom)).filter(s=>s!=='aucun');
-      const penalites = concerned.filter(s=>s==='penalite').length;
-      const worst = penalites ? 'penalite' : (concerned.some(s=>s==='non_declare') ? 'non_declare' : 'declare');
-      return `<div class="cal-details-item"><span><b>${t.nom}</b> — ${concerned.length} contribuable${concerned.length>1?'s':''} lié${concerned.length>1?'s':''}</span><span class="badge ${badgeClass(worst)}">${statutLabel(worst)}</span></div>`;
+    ${items.map(o=>{
+      const badge = o.statut_effectif === 'penalite' ? 'penalite' : (o.statut === 'a_declarer' ? 'non_declare' : o.statut);
+      return `<div class="cal-details-item"><span><b>${o.contribuable_nom}</b> — ${o.type_nom} (${o.periode} ${o.annee})</span><span class="badge ${badgeClass(badge === 'justificatif_depose' ? 'declare' : badge)}">${statutLabel(badge)}</span></div>`;
     }).join('')}
   ` : '';
 }
 
 /* ================= HELPERS ================= */
-function statutLabel(s){return {non_declare:'Non déclaré',declare:'Déclaré',penalite:'Pénalité',aucun:'Aucun'}[s];}
-function badgeClass(s){return {non_declare:'b-todo',declare:'b-done',penalite:'b-late',aucun:'b-inactive'}[s];}
-/* Statut effectif d'une cellule (contribuable × document à suivre) :
-   "aucun" si le contribuable n'a pas ce document, "Déclaré" s'il a été marqué comme tel,
-   sinon "Pénalité" dès que la date limite du document est dépassée, "Non déclaré" par défaut. */
-   function computeCellStatut(contribId, docTypeId){
-  const entry = docStatusMatrix[contribId+'||'+docTypeId];
-  if(!entry) return 'aucun';
-  if(entry.statut === 'declare') return 'declare';
-  const type = trackedDocTypes.find(t=>t.id===docTypeId);
-  if(type && type.dateLimite && startOfDay(type.dateLimite) < startOfDay(new Date())) return 'penalite';
+function statutLabel(s){
+  return {
+    non_declare:'À déclarer', a_declarer:'À déclarer', declare:'Déclaré',
+    justificatif_depose:'Justificatif déposé', penalite:'En retard', aucun:'Aucun'
+  }[s] || s;
+}
+function badgeClass(s){
+  return {
+    non_declare:'b-todo', a_declarer:'b-todo', declare:'b-done',
+    justificatif_depose:'b-done', penalite:'b-late', aucun:'b-inactive'
+  }[s] || 'b-todo';
+}
+function computeCellStatut(contribId, docTypeId){
+  const year = new Date().getFullYear();
+  const matches = obligations.filter(o =>
+    Number(o.contribuable_id)===Number(contribId) &&
+    Number(o.tracked_doc_type_id)===Number(docTypeId) &&
+    Number(o.annee)===year
+  );
+  if(!matches.length){
+    const entry = docStatusMatrix[contribId+'||'+docTypeId];
+    if(!entry) return 'aucun';
+    if(entry.statut === 'declare') return 'declare';
+    const type = trackedDocTypes.find(t=>Number(t.id)===Number(docTypeId));
+    if(type && type.dateLimite && startOfDay(type.dateLimite) < startOfDay(new Date())) return 'penalite';
+    return 'non_declare';
+  }
+  const open = matches.filter(o=>o.statut!=='declare' && o.statut!=='justificatif_depose');
+  if(!open.length){
+    return matches.some(o=>o.statut==='justificatif_depose') ? 'justificatif_depose' : 'declare';
+  }
+  if(open.some(o=>o.statut_effectif==='penalite' || o.echeance_bucket==='retard')) return 'penalite';
   return 'non_declare';
 }
 function fmtFCFA(n){return n.toLocaleString('fr-FR')+' FCFA';}
@@ -1343,50 +1427,245 @@ function resetArchives(){
   renderArchives();
 }
 
-/* ================= RENDER: DECLARATIONS ================= */
-/* ================= DÉCLARATION : matrice contribuable × documents à suivre ================= */
+/* ================= RENDER: OBLIGATIONS + MATRICE ================= */
+function openObligationModal(){
+  const selC = document.getElementById('f-obl-contrib');
+  const selT = document.getElementById('f-obl-type');
+  if(!selC || !selT){ alert('Formulaire obligation indisponible.'); return; }
+  selC.innerHTML = contribuables.map(c=>`<option value="${c.id}">${c.nom}</option>`).join('') || '<option value="">—</option>';
+  selT.innerHTML = trackedDocTypes.map(t=>`<option value="${t.id}">${t.nom}</option>`).join('') || '<option value="">—</option>';
+  document.getElementById('f-obl-annee').value = new Date().getFullYear();
+  document.getElementById('f-obl-periode').value = 'T1';
+  document.getElementById('f-obl-deadline').value = '';
+  document.getElementById('f-obl-org').value = '';
+  openModal('modalObligation');
+}
+async function submitObligation(){
+  const payload = {
+    contribuable_id: Number(document.getElementById('f-obl-contrib').value),
+    tracked_doc_type_id: Number(document.getElementById('f-obl-type').value),
+    annee: Number(document.getElementById('f-obl-annee').value),
+    periode: document.getElementById('f-obl-periode').value,
+    date_limite: document.getElementById('f-obl-deadline').value || null,
+    organisme: document.getElementById('f-obl-org').value || null,
+  };
+  if(!payload.contribuable_id || !payload.tracked_doc_type_id){
+    alert('Contribuable et type obligatoires.'); return;
+  }
+  try{
+    const data = await apiUsers('/obligations', 'POST', payload);
+    obligations.push(data.obligation);
+    applySuiviKpis(data.kpis);
+    syncMatrixFromObligations();
+    closeModal('modalObligation');
+    refreshSuiviUI();
+  }catch(e){ alert(e.message); }
+}
+function filteredObligations(){
+  const q = ((document.getElementById('oblSearch')||{}).value||'').toLowerCase();
+  const annee = (document.getElementById('oblFilterAnnee')||{}).value || '';
+  const periode = (document.getElementById('oblFilterPeriode')||{}).value || '';
+  const typeId = (document.getElementById('oblFilterType')||{}).value || '';
+  const org = (document.getElementById('oblFilterOrg')||{}).value || '';
+  const statut = (document.getElementById('oblFilterStatut')||{}).value || '';
+  const ech = (document.getElementById('oblFilterEcheance')||{}).value || '';
+  const piece = (document.getElementById('oblFilterPiece')||{}).value || '';
+  return obligations.filter(o=>{
+    if(q && !(String(o.contribuable_nom||'').toLowerCase().includes(q) || String(o.contribuable_niu||'').toLowerCase().includes(q))) return false;
+    if(annee && String(o.annee)!==String(annee)) return false;
+    if(periode && o.periode!==periode) return false;
+    if(typeId && Number(o.tracked_doc_type_id)!==Number(typeId)) return false;
+    if(org && (o.organisme||'')!==org) return false;
+    if(statut){
+      const eff = o.statut_effectif || o.statut;
+      if(statut === 'penalite'){ if(eff !== 'penalite') return false; }
+      else if(statut === 'a_declarer'){ if(o.statut !== 'a_declarer') return false; }
+      else if(o.statut !== statut) return false;
+    }
+    if(ech && (o.echeance_bucket||'')!==ech) return false;
+    if(piece==='manquante' && o.has_justificatif) return false;
+    if(piece==='ok' && !o.has_justificatif) return false;
+    return true;
+  }).slice().sort((a,b)=>{
+    const da = a.date_limite ? parseISODate(a.date_limite).getTime() : Infinity;
+    const db = b.date_limite ? parseISODate(b.date_limite).getTime() : Infinity;
+    return da - db;
+  });
+}
+function populateObligationFilters(){
+  const ySel = document.getElementById('oblFilterAnnee');
+  const tSel = document.getElementById('oblFilterType');
+  if(ySel && ySel.options.length<=1){
+    const years = [...new Set(obligations.map(o=>o.annee))].sort((a,b)=>b-a);
+    if(!years.includes(new Date().getFullYear())) years.unshift(new Date().getFullYear());
+    years.forEach(y=>{ const opt=document.createElement('option'); opt.value=y; opt.textContent=y; ySel.appendChild(opt); });
+  }
+  if(tSel && tSel.options.length<=1){
+    trackedDocTypes.forEach(t=>{ const opt=document.createElement('option'); opt.value=t.id; opt.textContent=t.nom; tSel.appendChild(opt); });
+  }
+}
+function renderObligationsList(){
+  const tbody = document.getElementById('oblTbody');
+  if(!tbody){ renderComplianceList(); return; }
+  populateObligationFilters();
+  const rows = filteredObligations();
+  const countEl = document.getElementById('oblCount');
+  if(countEl) countEl.textContent = rows.length+' résultat(s) sur '+obligations.length;
+  if(!obligations.length){
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">Aucune obligation. Cliquez sur « Nouvelle obligation » pour démarrer le suivi.</td></tr>`;
+    renderObligationKpis(); renderComplianceList(); return;
+  }
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="8" class="empty">Aucun résultat pour ces filtres.</td></tr>`;
+    renderObligationKpis(); return;
+  }
+  tbody.innerHTML = rows.map(o=>{
+    const eff = o.statut_effectif || o.statut;
+    const badge = eff === 'a_declarer' ? 'non_declare' : eff;
+    const deadline = o.date_limite ? fmtFR(parseISODate(o.date_limite)) : '—';
+    const jours = o.jours_restants;
+    const joursTxt = jours==null ? '' : (jours<0 ? ` · retard ${-jours}j` : (jours===0 ? ' · aujourd\'hui' : ` · J-${jours}`));
+    const piece = o.has_justificatif
+      ? `<span class="badge b-done">Joint</span>`
+      : `<span class="badge b-late">Manquant</span>`;
+    return `<tr>
+      <td class="cell-strong sticky-col">${o.contribuable_nom}<div style="font-size:11px;color:var(--text-400);">${o.contribuable_niu||''}</div></td>
+      <td>${o.type_nom}</td>
+      <td>${o.periode_label||o.periode} ${o.annee}</td>
+      <td>${deadline}<div style="font-size:11px;color:var(--text-400);">${joursTxt}</div></td>
+      <td>${o.organisme||'—'}</td>
+      <td>
+        <select class="inline-select statut-select statut-${badge}" onchange="changeObligationStatut(${o.id}, this.value)">
+          <option value="a_declarer" ${o.statut==='a_declarer'?'selected':''}>À déclarer</option>
+          <option value="declare" ${o.statut==='declare'?'selected':''}>Déclaré</option>
+          <option value="justificatif_depose" ${o.statut==='justificatif_depose'?'selected':''}>Justificatif déposé</option>
+        </select>
+        ${eff==='penalite'?'<div style="margin-top:4px;"><span class="badge b-late">En retard</span></div>':''}
+      </td>
+      <td>${piece}</td>
+      <td>
+        <div class="row-actions">
+          <button class="mini-btn" title="Joindre justificatif" onclick="openJustificatifModal(${o.id})"><svg><use href="#i-folder"/></svg></button>
+          <button class="mini-btn" title="Supprimer" onclick="deleteObligation(${o.id})"><svg><use href="#i-x"/></svg></button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  renderObligationKpis();
+  renderComplianceList();
+}
+function resetObligationFilters(){
+  ['oblSearch','oblFilterAnnee','oblFilterPeriode','oblFilterType','oblFilterOrg','oblFilterStatut','oblFilterEcheance','oblFilterPiece'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(el.tagName==='INPUT') el.value=''; else el.selectedIndex=0;
+  });
+  renderObligationsList();
+}
+async function changeObligationStatut(id, statut){
+  const o = findObligation(id);
+  if(!o) return;
+  if((statut==='declare' || statut==='justificatif_depose') && !o.has_justificatif){
+    alert("Impossible de clôturer sans justificatif GED. Déposez d'abord une pièce.");
+    openJustificatifModal(id);
+    renderObligationsList();
+    return;
+  }
+  try{
+    const data = await apiUsers(`/obligations/${id}`, 'PATCH', { statut });
+    const idx = obligations.findIndex(x=>Number(x.id)===Number(id));
+    if(idx>=0) obligations[idx] = data.obligation;
+    applySuiviKpis(data.kpis);
+    syncMatrixFromObligations();
+    refreshSuiviUI();
+  }catch(e){ alert(e.message); renderObligationsList(); }
+}
+function openJustificatifModal(id){
+  const o = findObligation(id);
+  if(!o) return;
+  document.getElementById('f-obl-justif-id').value = id;
+  document.getElementById('f-obl-justif-nom').value = `Justificatif — ${o.type_nom} ${o.periode} ${o.annee}`;
+  document.getElementById('f-obl-justif-file').value = '';
+  document.getElementById('oblJustifHint').textContent =
+    `Obligation : ${o.contribuable_nom} — ${o.type_nom} (${o.periode} ${o.annee}). Le fichier est obligatoire pour clôturer.`;
+  openModal('modalOblJustificatif');
+}
+async function submitObligationJustificatif(){
+  const id = document.getElementById('f-obl-justif-id').value;
+  const fileInput = document.getElementById('f-obl-justif-file');
+  if(!fileInput.files || !fileInput.files[0]){ alert('Sélectionnez un fichier.'); return; }
+  const fd = new FormData();
+  fd.append('nom', document.getElementById('f-obl-justif-nom').value || '');
+  fd.append('fichier', fileInput.files[0]);
+  try{
+    const res = await fetch(`/obligations/${id}/justificatif`, {
+      method:'POST',
+      headers:{ 'X-CSRF-TOKEN': csrfToken, 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest' },
+      body: fd
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.message || (data.errors && Object.values(data.errors).flat().join('\n')) || 'Erreur dépôt');
+    const idx = obligations.findIndex(x=>Number(x.id)===Number(id));
+    if(idx>=0) obligations[idx] = data.obligation;
+    if(data.document) documents.unshift(data.document);
+    applySuiviKpis(data.kpis);
+    syncMatrixFromObligations();
+    closeModal('modalOblJustificatif');
+    refreshSuiviUI();
+  }catch(e){ alert(e.message); }
+}
+async function deleteObligation(id){
+  if(!confirm('Supprimer cette obligation de suivi ?')) return;
+  try{
+    const data = await apiUsers(`/obligations/${id}`, 'DELETE');
+    obligations = obligations.filter(o=>Number(o.id)!==Number(id));
+    applySuiviKpis(data.kpis);
+    syncMatrixFromObligations();
+    refreshSuiviUI();
+  }catch(e){ alert(e.message); }
+}
+function refreshSuiviUI(){
+  renderObligationsList();
+  renderDeclarations();
+  renderObligationKpis();
+  renderKPIs();
+  renderTimeline();
+  renderFeed();
+  renderCalendar();
+  refreshNotifications();
+}
+
 function renderDeclarations(){
-  if(!document.getElementById('declTbody')){ renderComplianceList(); return; }
-  const q = (document.getElementById('declSearch').value||'').toLowerCase();
-  const org = document.getElementById('declFilterOrg').value;
-  const conformite = document.getElementById('declFilterStatut').value;
+  if(!document.getElementById('declTbody')){ renderObligationsList(); renderComplianceList(); return; }
+  const q = ((document.getElementById('declSearch')||{}).value||'').toLowerCase();
+  const org = ((document.getElementById('declFilterOrg')||{}).value||'');
+  const conformite = ((document.getElementById('declFilterStatut')||{}).value||'');
+  const year = new Date().getFullYear();
 
   const isConforme = (c)=>{
-    const linked = trackedDocTypes.map(t=> computeCellStatut(c.id, t.id)).filter(s=>s!=='aucun');
-    if(!linked.length) return true; // rien à suivre = pas "non en règle"
-    return linked.every(s=>s==='declare');
+    const linked = obligations.filter(o=>Number(o.contribuable_id)===Number(c.id) && Number(o.annee)===year);
+    if(!linked.length) return true;
+    return linked.every(o=>o.statut==='declare' || o.statut==='justificatif_depose');
   };
 
   let rows = contribuables.filter(c=>{
-    if(!c.nom.toLowerCase().includes(q)) return false;
+    if(!(c.nom||'').toLowerCase().includes(q)) return false;
     if(org && (c.organisme||'') !== org) return false;
-    
     if(conformite==='conforme' && !isConforme(c)) return false;
     if(conformite==='non_conforme' && isConforme(c)) return false;
     return true;
   });
 
-  document.getElementById('declCount').textContent = rows.length+' résultat(s) sur '+contribuables.length;
-
-  // ---- entête dynamique ----
   const orgOptions = ['DGI','CNPS','Autres'];
-  const theadHtml = `<tr>
+  document.getElementById('declThead').innerHTML = `<tr>
     <th class="sticky-col">Contribuable</th>
     <th>Organisme</th>
     <th>Vérification</th>
     ${trackedDocTypes.map(t=>`<th>${t.nom}</th>`).join('')}
   </tr>`;
-  document.getElementById('declThead').innerHTML = theadHtml;
 
-  if(!contribuables.length){
-    const colspan = 3+trackedDocTypes.length;
-    document.getElementById('declTbody').innerHTML = `<tr><td colspan="${colspan}" class="empty">Aucun contribuable enregistré. Ajoutez-en depuis l'écran Contribuables.</td></tr>`;
-    renderComplianceList();
-    return;
-  }
   if(!rows.length){
-    const colspan = 3+trackedDocTypes.length;
-    document.getElementById('declTbody').innerHTML = `<tr><td colspan="${colspan}" class="empty">Aucun contribuable ne correspond à votre recherche.</td></tr>`;
+    document.getElementById('declTbody').innerHTML = `<tr><td colspan="${3+trackedDocTypes.length}" class="empty">Aucun contribuable.</td></tr>`;
     renderComplianceList();
     return;
   }
@@ -1399,25 +1678,22 @@ function renderDeclarations(){
     </select>`;
     const cellsHtml = trackedDocTypes.map(t=>{
       const statut = computeCellStatut(c.id, t.id);
-      const nameEsc = c.nom.replace(/'/g,"\\'");
-      const typeEsc = t.nom.replace(/'/g,"\\'");
+      const ui = statut==='justificatif_depose' ? 'declare' : statut;
       return `<td>
-        <select class="inline-select statut-select statut-${statut}" onchange="updateCellStatut(${c.id}, ${t.id}, this.value)">
+        <select class="inline-select statut-select statut-${ui}" onchange="updateCellStatut(${c.id}, ${t.id}, this.value)">
           <option value="aucun" ${statut==='aucun'?'selected':''}>Aucun</option>
-          <option value="non_declare" ${statut==='non_declare'?'selected':''}>Non déclaré</option>
-          <option value="declare" ${statut==='declare'?'selected':''}>Déclaré</option>
-          <option value="penalite" ${statut==='penalite'?'selected':''}>Pénalité</option>
+          <option value="non_declare" ${statut==='non_declare'||statut==='penalite'?'selected':''}>À déclarer</option>
+          <option value="declare" ${statut==='declare'||statut==='justificatif_depose'?'selected':''}>Déclaré</option>
         </select>
       </td>`;
     }).join('');
-    const nameEscOuter = c.nom.replace(/'/g,"\\'");
     const linked = hasTrackedDocLinked(c.id);
     const verifUrl = c.lien_verification || '';
     const verifCell = linked ? `
       <div class="row-actions" style="justify-content:flex-start;">
-        <button class="mini-btn ${verifUrl?'mini-btn-active':''}" title="${verifUrl?'Ouvrir le lien de vérification':'Aucun lien enregistré'}"onclick="openVerifLink(${c.id})""><svg><use href="#i-link"/></svg></button>
-        <button class="mini-btn" title="${verifUrl?'Modifier le lien':'Enregistrer le lien'} de vérification"onclick="editVerifLink(${c.id})""><svg><use href="#i-edit"/></svg></button>
-      </div>` : `<span style="font-size:11.5px;color:var(--text-400);" title="Enregistrez d'abord un document à suivre pour ce contribuable">—</span>`;
+        <button class="mini-btn ${verifUrl?'mini-btn-active':''}" title="Ouvrir vérification" onclick="openVerifLink(${c.id})"><svg><use href="#i-link"/></svg></button>
+        <button class="mini-btn" title="Éditer le lien" onclick="editVerifLink(${c.id})"><svg><use href="#i-edit"/></svg></button>
+      </div>` : `<span style="font-size:11.5px;color:var(--text-400);">—</span>`;
     return `<tr>
       <td class="cell-strong sticky-col">${c.nom}</td>
       <td>${orgSelect}</td>
@@ -1429,9 +1705,9 @@ function renderDeclarations(){
   renderComplianceList();
 }
 
-/* ---- Lien de vérification (DGI/CNPS) par contribuable ---- */
 function hasTrackedDocLinked(contribId){
-  return trackedDocTypes.some(t=>computeCellStatut(contribId, t.id)!=='aucun');
+  return obligations.some(o=>Number(o.contribuable_id)===Number(contribId))
+    || trackedDocTypes.some(t=>computeCellStatut(contribId, t.id)!=='aucun');
 }
 function suggestedVerifUrl(contribId){
   const c = findContrib(contribId) || {};
@@ -1441,7 +1717,7 @@ function suggestedVerifUrl(contribId){
 }
 async function editVerifLink(contribId){
   if(!hasTrackedDocLinked(contribId)){
-    alert("Enregistrez d'abord un document à suivre pour ce contribuable.");
+    alert("Créez d'abord une obligation pour ce contribuable.");
     return;
   }
   const c = findContrib(contribId);
@@ -1458,11 +1734,9 @@ async function editVerifLink(contribId){
 function openVerifLink(contribId){
   const c = findContrib(contribId);
   const url = c && c.lien_verification;
-  if(!url){ alert("Aucun lien de vérification enregistré. Cliquez sur le crayon pour en ajouter un."); return; }
+  if(!url){ alert("Aucun lien de vérification enregistré."); return; }
   window.open(url, '_blank', 'noopener');
 }
-
-/* ---- Organisme par contribuable ---- */
 async function updateContribOrganisme(contribId, value){
   const c = findContrib(contribId);
   let finalValue = value;
@@ -1476,63 +1750,127 @@ async function updateContribOrganisme(contribId, value){
     renderDeclarations();
   }catch(e){ alert(e.message); renderDeclarations(); }
 }
-
-/* ---- Statut d'une cellule (contribuable × document à suivre) ---- */
 async function updateCellStatut(contribId, docTypeId, value){
-  const key = contribId+'||'+docTypeId;
   try{
-    await apiUsers('/declaration-statuts', 'POST',
-      { contribuable_id: contribId, tracked_doc_type_id: docTypeId, statut: value });
-    if(value==='aucun'){ delete docStatusMatrix[key]; }
-    else { docStatusMatrix[key] = { statut: value==='penalite' ? 'non_declare' : value }; }
-    renderDeclarations(); renderKPIs(); renderTimeline(); refreshNotifications(); renderCalendar();
+    const data = await apiUsers('/declaration-statuts', 'POST',
+      { contribuable_id: contribId, tracked_doc_type_id: docTypeId, statut: value, annee: new Date().getFullYear(), periode: 'AUTRE' });
+    if(data.obligation){
+      const idx = obligations.findIndex(o=>Number(o.id)===Number(data.obligation.id));
+      if(idx>=0) obligations[idx] = data.obligation; else if(value!=='aucun') obligations.push(data.obligation);
+    }
+    if(value==='aucun'){
+      obligations = obligations.filter(o=>!(Number(o.contribuable_id)===Number(contribId) && Number(o.tracked_doc_type_id)===Number(docTypeId) && o.periode==='AUTRE' && Number(o.annee)===new Date().getFullYear()));
+    }
+    syncMatrixFromObligations();
+    refreshSuiviUI();
   }catch(e){ alert(e.message); renderDeclarations(); }
 }
+async function addTrackedDocType(){ openTrackedTypeModal(); }
+let editTrackedTypeId = null;
+const periodiciteLabels = { libre:'Libre', mensuelle:'Mensuelle', trimestrielle:'Trimestrielle', annuelle:'Annuelle' };
 
-/* ---- Liste des documents à suivre (écran Documents) ---- */
-async function addTrackedDocType(){
-  const input = document.getElementById('f-trackeddoc-nom');
-  const nom = input.value.trim();
-  if(!nom){ alert('Veuillez saisir un nom de document à suivre.'); return; }
+function openTrackedTypeModal(id){
+  editTrackedTypeId = id ? Number(id) : null;
+  const title = document.getElementById('modalTrackedTypeTitle');
+  if(title) title.textContent = editTrackedTypeId ? 'Modifier le type d\'obligation' : 'Ajouter un type d\'obligation';
+  const t = editTrackedTypeId ? findTrackedDocType(editTrackedTypeId) : null;
+  const idEl = document.getElementById('f-tracked-id');
+  if(idEl) idEl.value = editTrackedTypeId || '';
+  document.getElementById('f-tracked-nom').value = t ? t.nom : '';
+  document.getElementById('f-tracked-periodicite').value = t ? (t.periodicite || 'libre') : 'trimestrielle';
+  document.getElementById('f-tracked-organisme').value = t ? (t.organisme_defaut || '') : 'DGI';
+  document.getElementById('f-tracked-deadline').value = t && t.dateLimite ? toISOInput(t.dateLimite) : '';
+  openModal('modalTrackedType');
+}
+async function submitTrackedType(){
+  const nom = (document.getElementById('f-tracked-nom').value || '').trim();
+  if(!nom){ alert('Le libellé est obligatoire.'); return; }
+  const payload = {
+    nom,
+    periodicite: document.getElementById('f-tracked-periodicite').value || 'libre',
+    organisme_defaut: document.getElementById('f-tracked-organisme').value || null,
+    date_limite: document.getElementById('f-tracked-deadline').value || null,
+  };
   try{
-    const data = await apiUsers('/tracked-doc-types', 'POST', { nom });
-    trackedDocTypes.push({ id: data.trackedDocType.id, nom: data.trackedDocType.nom, dateLimite: null });
-    input.value='';
-    renderTrackedDocList(); renderTrackedDeadlineList(); renderDeclarations(); renderKPIs();
+    let data;
+    if(editTrackedTypeId){
+      data = await apiUsers(`/tracked-doc-types/${editTrackedTypeId}`, 'PUT', payload);
+      const idx = trackedDocTypes.findIndex(t=>Number(t.id)===Number(editTrackedTypeId));
+      const front = {
+        id: data.trackedDocType.id,
+        nom: data.trackedDocType.nom,
+        dateLimite: data.trackedDocType.date_limite ? new Date(data.trackedDocType.date_limite + 'T00:00:00') : null,
+        periodicite: data.trackedDocType.periodicite || 'libre',
+        organisme_defaut: data.trackedDocType.organisme_defaut || null,
+      };
+      if(idx>=0) trackedDocTypes[idx] = front; else trackedDocTypes.push(front);
+    } else {
+      data = await apiUsers('/tracked-doc-types', 'POST', payload);
+      trackedDocTypes.push({
+        id: data.trackedDocType.id,
+        nom: data.trackedDocType.nom,
+        dateLimite: data.trackedDocType.date_limite ? new Date(data.trackedDocType.date_limite + 'T00:00:00') : null,
+        periodicite: data.trackedDocType.periodicite || 'libre',
+        organisme_defaut: data.trackedDocType.organisme_defaut || null,
+      });
+    }
+    trackedDocTypes.sort((a,b)=> a.nom.localeCompare(b.nom, 'fr'));
+    closeModal('modalTrackedType');
+    editTrackedTypeId = null;
+    renderTrackedDocList(); renderTrackedDeadlineList(); renderDeclarations(); renderObligationsList();
   }catch(e){ alert(e.message); }
 }
 async function removeTrackedDocType(id){
   const type = findTrackedDocType(id);
-  if(!confirm(`Retirer « ${type.nom} » des documents à suivre ? Les statuts déjà enregistrés seront perdus.`)) return;
+  if(!type) return;
+  if(!confirm(`Retirer « ${type.nom} » des types d'obligations ?`)) return;
   try{
     await apiUsers(`/tracked-doc-types/${id}`, 'DELETE');
-    Object.keys(docStatusMatrix).forEach(k=>{ if(k.endsWith('||'+id)) delete docStatusMatrix[k]; });
     trackedDocTypes = trackedDocTypes.filter(t=>Number(t.id)!==Number(id));
-    renderTrackedDocList(); renderTrackedDeadlineList(); renderDeclarations();
-    renderTimeline(); refreshNotifications(); renderCalendar(); renderKPIs();
+    obligations = obligations.filter(o=>Number(o.tracked_doc_type_id)!==Number(id));
+    syncMatrixFromObligations();
+    refreshSuiviUI();
+    renderTrackedDocList(); renderTrackedDeadlineList();
   }catch(e){ alert(e.message); }
 }
 function renderTrackedDocList(){
   const el = document.getElementById('trackedDocList');
   if(!el) return;
+  if(el.tagName === 'TBODY'){
+    el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map(t => `
+      <tr>
+        <td class="cell-strong">${t.nom}</td>
+        <td>${periodiciteLabels[t.periodicite] || t.periodicite || 'Libre'}</td>
+        <td>${t.organisme_defaut || '—'}</td>
+        <td>${t.dateLimite ? fmtFR(t.dateLimite) : '—'}</td>
+        <td>
+          <div class="row-actions">
+            <button class="mini-btn" title="Modifier" onclick="openTrackedTypeModal(${t.id})"><svg><use href="#i-edit"/></svg></button>
+            <button class="mini-btn" title="Supprimer" onclick="removeTrackedDocType(${t.id})"><svg><use href="#i-x"/></svg></button>
+          </div>
+        </td>
+      </tr>`).join('') : `<tr><td colspan="5" class="empty">Aucun type. Lancez le seeder Cameroun ou ajoutez un type.</td></tr>`;
+    return;
+  }
   el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map(t => `
     <span class="tag" style="padding:7px 10px;">
       ${t.nom}
+      <button class="mini-btn" style="width:18px;height:18px;margin-left:2px;" title="Modifier" onclick="openTrackedTypeModal(${t.id})"><svg style="width:11px;height:11px"><use href="#i-edit"/></svg></button>
       <button class="mini-btn" style="width:18px;height:18px;margin-left:2px;" title="Retirer" onclick="removeTrackedDocType(${t.id})"><svg style="width:11px;height:11px"><use href="#i-x"/></svg></button>
     </span>
-  `).join('') : `<span style="font-size:12px;color:var(--text-400);">Aucun document à suivre configuré pour le moment.</span>`;
+  `).join('') : `<span style="font-size:12px;color:var(--text-400);">Aucun type d'obligation configuré.</span>`;
 }
-
-/* ---- Échéances des documents à suivre (écran Déclaration) ---- */
 function renderTrackedDeadlineList(){
   const el = document.getElementById('trackedDeadlineList');
   if(!el) return;
   el.innerHTML = trackedDocTypes.length ? trackedDocTypes.map(t => `
-    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:1px solid var(--line);border-radius:9px;">
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg);border:1px solid var(--line);border-radius:9px;flex-wrap:wrap;">
       <span class="cell-strong" style="flex:1;">${t.nom}</span>
+      <span style="font-size:11.5px;color:var(--text-400);">${periodiciteLabels[t.periodicite]||'Libre'} · ${t.organisme_defaut||'—'}</span>
       <input type="date" value="${toISOInput(t.dateLimite)}" onchange="setTrackedDeadline(${t.id}, this.value)">
+      <button class="mini-btn" title="Modifier" onclick="openTrackedTypeModal(${t.id})"><svg><use href="#i-edit"/></svg></button>
     </div>
-  `).join('') : `<span style="font-size:12px;color:var(--text-400);">Configurez d'abord des documents à suivre depuis l'écran Documents.</span>`;
+  `).join('') : `<span style="font-size:12px;color:var(--text-400);">Configurez les types depuis Documents (ou seed Cameroun).</span>`;
 }
 async function setTrackedDeadline(id, value){
   const type = findTrackedDocType(id);
@@ -1540,30 +1878,28 @@ async function setTrackedDeadline(id, value){
     const data = await apiUsers(`/tracked-doc-types/${id}/deadline`, 'PATCH', { date_limite: value || null });
     type.dateLimite = data.trackedDocType.date_limite
       ? new Date(data.trackedDocType.date_limite + 'T00:00:00') : null;
-    renderDeclarations(); renderTimeline(); refreshNotifications(); renderCalendar();
+    refreshSuiviUI();
   }catch(e){ alert(e.message); renderTrackedDeadlineList(); }
 }
-
-/* ---- Auto-liaison à l'enregistrement d'un document (écran Documents) ---- */
 function autoLinkTrackedDoc(doc){
-  // La liaison est réalisée côté serveur (DocumentController::autoLierDocumentSuivi).
-  // Ici on met simplement la matrice locale à jour pour un affichage immédiat.
-  const match = trackedDocTypes.find(t=>t.nom.trim().toLowerCase() === (doc.type||'').trim().toLowerCase());
-  if(!match || !doc.contribuable_id) return;
-  const key = doc.contribuable_id+'||'+match.id;
-  if(!docStatusMatrix[key]) docStatusMatrix[key] = { statut:'non_declare' };
+  if(doc.obligation_id){
+    const o = findObligation(doc.obligation_id);
+    if(o){ o.has_justificatif = true; o.documents_count = (o.documents_count||0)+1; }
+  }
 }
-
-/* ---- Contribuables non en règle ---- */
 function renderComplianceList(){
   const el = document.getElementById('complianceList');
   if(!el) return;
-  const problems = contribuables.map(c=>{
-    const docs = trackedDocTypes.map(t=>({ nom:t.nom, statut: computeCellStatut(c.nom, t.nom) })).filter(e=>e.statut!=='aucun');
-    const pending = docs.filter(e=>e.statut!=='declare');
-    return { contrib: c.nom, pending };
-  }).filter(p=>p.pending.length);
-
+  const byContrib = {};
+  obligations.forEach(o=>{
+    if(o.statut==='declare' || o.statut==='justificatif_depose') return;
+    if(!byContrib[o.contribuable_id]) byContrib[o.contribuable_id] = { contrib: o.contribuable_nom, pending: [] };
+    byContrib[o.contribuable_id].pending.push({
+      nom: `${o.type_nom} ${o.periode} ${o.annee}`,
+      statut: o.statut_effectif === 'penalite' ? 'penalite' : 'non_declare'
+    });
+  });
+  const problems = Object.values(byContrib);
   el.innerHTML = problems.length ? problems.map(p=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--red-bg);border:1px solid #f2c9c9;border-radius:9px;flex-wrap:wrap;">
       <svg style="width:15px;height:15px;color:var(--red);flex:none;"><use href="#i-alert"/></svg>
@@ -1575,6 +1911,10 @@ function renderComplianceList(){
     </div>`).join('') : `<div style="font-size:12.5px;color:var(--green);display:flex;align-items:center;gap:8px;"><svg style="width:15px;height:15px;"><use href="#i-check"/></svg>Tous les contribuables suivis sont en règle.</div>`;
 }
 
+['oblSearch','oblFilterAnnee','oblFilterPeriode','oblFilterType','oblFilterOrg','oblFilterStatut','oblFilterEcheance','oblFilterPiece'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener(el.tagName==='INPUT'?'input':'change', renderObligationsList);
+});
 const declSearchInput = document.getElementById('declSearch');
 if(declSearchInput) declSearchInput.addEventListener('input', renderDeclarations);
 ['declFilterOrg','declFilterStatut'].forEach(id=>{
@@ -1885,6 +2225,8 @@ function normalizeContrib(d){
     qIgs: d.q_igs, qBail: d.q_bail, qPrecompte: d.q_precompte,
     acfIgs: d.acf_igs, acfBail: d.acf_bail, acfPrecompte: d.acf_precompte,
     lieu: d.lieu, tel: d.tel,
+    organisme: d.organisme || null,
+    lien_verification: d.lien_verification || null,
   };
 }
 async function submitContribuable(){

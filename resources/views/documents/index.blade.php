@@ -27,15 +27,60 @@
 
       <div class="panel" style="margin-top:16px;">
         <div class="panel-head">
-          <div><h3>Documents à suivre</h3><div class="sub">Ces types de documents apparaîtront comme colonnes dans le tableau des Déclaration. Lorsqu'un document enregistré ci-dessus correspond à l'un de ces types, il est automatiquement lié au contribuable concerné.</div></div>
+          <div>
+            <h3>Types d'obligations (catalogue)</h3>
+            <div class="sub">Catalogue DGI / CNPS — périodicité et organisme par défaut. Utilisé pour créer les obligations de suivi.</div>
+          </div>
+          <button class="btn btn-primary" type="button" onclick="openTrackedTypeModal()"><svg><use href="#i-plus"/></svg>Ajouter un type</button>
         </div>
-        <div style="padding:14px 18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <input type="text" id="f-trackeddoc-nom" placeholder="Ex : Avis d'imposition" style="flex:1;min-width:220px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;font-size:13px;background:var(--bg);">
-          <button class="btn btn-primary" onclick="addTrackedDocType()"><svg><use href="#i-plus"/></svg>Ajouter un document à suivre</button>
+        <div style="padding:0 18px 16px;overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Libellé</th>
+                <th>Périodicité</th>
+                <th>Organisme</th>
+                <th>Échéance défaut</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="trackedDocList"></tbody>
+          </table>
         </div>
-        <div id="trackedDocList" style="padding:0 18px 16px;display:flex;flex-wrap:wrap;gap:8px;"></div>
       </div>
     </section>
+
+<div class="overlay" id="ov-modalTrackedType">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head"><h3 id="modalTrackedTypeTitle">Ajouter un type d'obligation</h3><button class="mini-btn" type="button" onclick="closeModal('modalTrackedType')"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="f-tracked-id">
+      <div class="field"><label>Libellé</label><input id="f-tracked-nom" placeholder="Ex : IGS, TVA, Cotisations CNPS"></div>
+      <div class="field-row">
+        <div class="field"><label>Périodicité</label>
+          <select id="f-tracked-periodicite">
+            <option value="libre">Libre</option>
+            <option value="mensuelle">Mensuelle</option>
+            <option value="trimestrielle">Trimestrielle</option>
+            <option value="annuelle">Annuelle</option>
+          </select>
+        </div>
+        <div class="field"><label>Organisme</label>
+          <select id="f-tracked-organisme">
+            <option value="">—</option>
+            <option value="DGI">DGI</option>
+            <option value="CNPS">CNPS</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Date limite par défaut (optionnel)</label><input type="date" id="f-tracked-deadline"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" type="button" onclick="closeModal('modalTrackedType')">Annuler</button>
+      <button class="btn btn-primary" type="button" onclick="submitTrackedType()">Enregistrer</button>
+    </div>
+  </div>
+</div>
 
     <!-- ===== ARCHIVES ===== -->
 

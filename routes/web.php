@@ -75,10 +75,10 @@ Route::middleware('auth')->group(function () {
 
     // ---- Tableau de bord ----
     Route::get('/dashboard', function () {
-        return view('dashboard', [
-            'authUser' => fiscaltrackAuthUser(),
-            'initialContribuables' => \App\Contribuable::latest()->get()
-        ]);
+        $data = \App\Http\Controllers\DeclarationController::donneesSuivi();
+        $data['authUser'] = fiscaltrackAuthUser();
+
+        return view('dashboard', $data);
     })->name('dashboard');
 
     // ---- Contribuables ----
@@ -120,11 +120,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/declarations', 'DeclarationController@page')->name('declarations.index');
 
     // ---- Notifications ----
-    Route::get('/notifications', function () {
-        return view('notifications.index', [
-            'authUser' => fiscaltrackAuthUser(),
-        ]);
-    })->name('notifications.index');
+    Route::get('/notifications', 'NotificationController@index')->name('notifications.index');
+    Route::get('/api/notifications', 'NotificationController@listJson')->name('notifications.list');
+    Route::patch('/api/notifications/{id}/read', 'NotificationController@markRead')->name('notifications.read');
+    Route::post('/api/notifications/read-all', 'NotificationController@markAllRead')->name('notifications.readAll');
+
+    // ---- Profil & paramètres ----
+    Route::get('/profile', 'ProfileController@show')->name('profile.index');
+    Route::put('/profile', 'ProfileController@update')->name('profile.update');
+    Route::put('/profile/password', 'ProfileController@updatePassword')->name('profile.password');
+    Route::get('/settings', 'ProfileController@settings')->name('settings.index');
 
     // ---- Comptes utilisateurs (page HTML) ----
     Route::get('/comptes', function () {
@@ -135,16 +140,25 @@ Route::middleware('auth')->group(function () {
     })->name('comptes.index');
 
     // ---- API JSON Comptes utilisateurs (déjà existante, inchangée) ----
-    // Utilisée par apiUsers()/reloadUsers() côté JS pour créer/modifier/lister sans recharger la page.
     Route::get('/users', 'UserController@page')->name('users.index');
     Route::post('/users', 'UserController@store')->name('users.store');
     Route::put('/users/{id}', 'UserController@update')->name('users.update');
     Route::patch('/users/{id}/toggle-status', 'UserController@toggleStatus')->name('users.toggle');
     Route::delete('/users/{id}', 'UserController@destroy')->name('users.destroy');
+
+    // ---- Types à suivre + matrice legacy ----
     Route::post('/tracked-doc-types', 'DeclarationController@storeTrackedDocType');
+    Route::put('/tracked-doc-types/{id}', 'DeclarationController@updateTrackedDocType');
     Route::delete('/tracked-doc-types/{id}', 'DeclarationController@destroyTrackedDocType');
     Route::patch('/tracked-doc-types/{id}/deadline', 'DeclarationController@updateDeadline');
     Route::post('/declaration-statuts', 'DeclarationController@storeStatut');
     Route::patch('/contribuables/{id}/organisme', 'DeclarationController@updateOrganisme');
-  Route::patch('/contribuables/{id}/lien-verification', 'DeclarationController@updateLienVerification');
+    Route::patch('/contribuables/{id}/lien-verification', 'DeclarationController@updateLienVerification');
+
+    // ---- Obligations fiscales (suivi) ----
+    Route::get('/obligations', 'DeclarationController@indexObligations');
+    Route::post('/obligations', 'DeclarationController@storeObligation');
+    Route::patch('/obligations/{id}', 'DeclarationController@updateObligation');
+    Route::delete('/obligations/{id}', 'DeclarationController@destroyObligation');
+    Route::post('/obligations/{id}/justificatif', 'DeclarationController@attachJustificatif');
 });

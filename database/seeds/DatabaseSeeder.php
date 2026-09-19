@@ -40,5 +40,8 @@ class DatabaseSeeder extends Seeder
                 'identifiant' => null,
             ]
         );
+
+        require_once database_path('seeds/CameroonObligationTypesSeeder.php');
+        $this->call(CameroonObligationTypesSeeder::class);
     }
 }

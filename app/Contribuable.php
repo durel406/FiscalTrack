@@ -38,7 +38,14 @@ class Contribuable extends Model
         'acf_precompte',
         'lieu',
         'tel',
+        'organisme',
+        'lien_verification',
     ];
+
+    public function obligations()
+    {
+        return $this->hasMany(Obligation::class);
+    }
 
     /**
      * Chiffre le mot de passe avant son enregistrement.
