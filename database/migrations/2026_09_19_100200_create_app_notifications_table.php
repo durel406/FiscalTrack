@@ -8,6 +8,10 @@ class CreateAppNotificationsTable extends Migration
 {
     public function up()
     {
+        if (Schema::hasTable('app_notifications')) {
+            return;
+        }
+
         Schema::create('app_notifications', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('obligation_id')->nullable();
