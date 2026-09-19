@@ -75,17 +75,52 @@
 
       <div class="panel" style="margin-top:16px;">
         <div class="panel-head">
-          <div><h3>Calendrier des échéances</h3><div class="sub">Basé sur les dates limites des obligations (par contribuable / période)</div></div>
+          <div>
+            <h3>Calendrier fiscal</h3>
+            <div class="sub">Vue mensuelle des échéances — cliquez un jour pour le détail opérationnel</div>
+          </div>
+          <a class="btn btn-ghost" href="{{ route('declarations.index') }}" style="text-decoration:none;">Voir le suivi</a>
         </div>
-        <div class="cal-head">
-          <div class="cal-nav"><button class="mini-btn" onclick="calNav(-1)"><svg><use href="#i-chevron-left"/></svg></button></div>
-          <div class="label" id="calMonthLabel"></div>
-          <div class="cal-nav"><button class="mini-btn" onclick="calNav(1)"><svg><use href="#i-chevron-right"/></svg></button></div>
+        <div class="cal-fiscal">
+          <div class="cal-fiscal-toolbar">
+            <div class="cal-nav">
+              <button type="button" class="mini-btn" title="Mois précédent" onclick="calNav(-1)"><svg><use href="#i-chevron-left"/></svg></button>
+              <button type="button" class="cal-btn-today" onclick="calGoToday()">Aujourd'hui</button>
+              <button type="button" class="mini-btn" title="Mois suivant" onclick="calNav(1)"><svg><use href="#i-chevron-right"/></svg></button>
+            </div>
+            <div class="cal-month-title" id="calMonthLabel"></div>
+            <div class="cal-nav" style="min-width:110px;justify-content:flex-end;">
+              <span style="font-size:11.5px;color:var(--text-400);" id="calMonthHint">—</span>
+            </div>
+          </div>
+          <div class="cal-month-kpis" id="calMonthKpis"></div>
+          <div class="cal-fiscal-layout">
+            <div>
+              <div class="cal-board">
+                <div class="cal-dow" id="calDow"></div>
+                <div class="cal-grid" id="calendarGrid"></div>
+              </div>
+              <div class="cal-legend-pro">
+                <span><i style="background:var(--red)"></i>En retard</span>
+                <span><i style="background:var(--amber)"></i>Échéance du jour</span>
+                <span><i style="background:var(--blue-500)"></i>Proche (≤ 7 j)</span>
+                <span><i style="background:var(--green)"></i>À venir</span>
+              </div>
+            </div>
+            <aside class="cal-agenda" id="calendarAgenda">
+              <div class="cal-agenda-head">
+                <div class="eyebrow">Agenda du jour</div>
+                <h4 id="calAgendaTitle">Sélectionnez une date</h4>
+              </div>
+              <div class="cal-agenda-body" id="calendarDetails">
+                <div class="cal-agenda-empty">
+                  <svg><use href="#i-clock"/></svg>
+                  <div>Sélectionnez un jour du calendrier pour afficher les obligations à suivre.</div>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
-        <div class="cal-dow" id="calDow"></div>
-        <div class="cal-grid" id="calendarGrid"></div>
-        <div class="cal-legend"><span><i style="background:var(--amber)"></i>Échéance à surveiller (non clôturée)</span></div>
-        <div class="cal-details" id="calendarDetails"></div>
       </div>
     </section>
 

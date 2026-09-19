@@ -480,6 +480,126 @@ th.sticky-col{z-index:5;}
 .cal-details-head{font-size:11.5px;font-weight:700;color:var(--text-600);margin-bottom:6px;}
 .cal-details-item{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);}
 .cal-details-item:last-child{border-bottom:none;}
+
+/* Calendrier fiscal professionnel */
+.cal-fiscal{padding:0 18px 18px;}
+.cal-fiscal-toolbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line);
+}
+.cal-fiscal-toolbar .cal-month-title{
+  font-family:'Sora',sans-serif;font-size:17px;font-weight:700;letter-spacing:-.02em;color:var(--text-900);
+  min-width:160px;text-align:center;
+}
+.cal-fiscal-toolbar .cal-nav{display:flex;align-items:center;gap:6px;}
+.cal-fiscal-toolbar .cal-nav .mini-btn{width:32px;height:32px;}
+.cal-btn-today{
+  border:1px solid var(--line);background:var(--surface);color:var(--text-600);
+  font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;
+}
+.cal-btn-today:hover{border-color:var(--blue-500);color:var(--blue-600);}
+.cal-month-kpis{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px;
+}
+.cal-kpi-chip{
+  display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--bg-subtle);
+}
+.cal-kpi-chip .n{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;line-height:1.1;}
+.cal-kpi-chip .l{font-size:10.5px;font-weight:600;color:var(--text-400);text-transform:uppercase;letter-spacing:.04em;}
+.cal-kpi-chip.late{background:var(--red-bg);border-color:#f2c9c9;}
+.cal-kpi-chip.late .n{color:var(--red);}
+.cal-kpi-chip.today{background:var(--amber-bg);border-color:#f0d9a8;}
+.cal-kpi-chip.today .n{color:var(--amber);}
+.cal-kpi-chip.soon{background:var(--ice-100);border-color:#c5daf5;}
+.cal-kpi-chip.soon .n{color:var(--blue-600);}
+.cal-kpi-chip.ok .n{color:var(--text-900);}
+.cal-fiscal-layout{
+  display:grid;grid-template-columns:minmax(0,1.15fr) minmax(280px,0.85fr);gap:16px;align-items:start;
+}
+.cal-board{
+  background:var(--bg-subtle);border:1px solid var(--line);border-radius:12px;padding:12px;
+}
+.cal-board .cal-dow{gap:3px;margin-bottom:6px;}
+.cal-board .cal-dow span{font-size:10px;padding:4px 0;}
+.cal-board .cal-grid{gap:3px;}
+.cal-day{
+  position:relative;min-height:64px;aspect-ratio:auto;border-radius:9px;padding:6px 6px 8px;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+  background:var(--surface);border:1px solid transparent;color:var(--text-600);font-size:12px;
+  transition:border-color .15s, box-shadow .15s, background .15s;
+}
+.cal-day.empty{background:transparent;min-height:64px;pointer-events:none;}
+.cal-day .cal-day-num{font-weight:600;font-size:12px;line-height:1;color:var(--text-900);}
+.cal-day.is-weekend .cal-day-num{color:var(--text-400);}
+.cal-day.is-today{
+  outline:none;border-color:var(--blue-500);box-shadow:inset 0 0 0 1px var(--blue-500);
+}
+.cal-day.is-today .cal-day-num{color:var(--blue-600);font-weight:800;}
+.cal-day.is-selected{border-color:var(--navy-800);box-shadow:0 0 0 2px rgba(21,39,97,.12);}
+.cal-day.has-items{cursor:pointer;}
+.cal-day.has-items:hover{border-color:var(--line);box-shadow:var(--shadow-sm);}
+.cal-day.sev-late{background:var(--red-bg);}
+.cal-day.sev-today{background:var(--amber-bg);}
+.cal-day.sev-proche{background:var(--ice-100);}
+.cal-day.sev-ok{background:#eef6f1;}
+.cal-day-meta{margin-top:auto;width:100%;display:flex;align-items:center;justify-content:space-between;gap:4px;}
+.cal-day-count{
+  font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;
+  min-width:18px;height:18px;padding:0 5px;border-radius:20px;
+  display:inline-flex;align-items:center;justify-content:center;background:rgba(16,29,71,.08);color:var(--text-900);
+}
+.cal-day.sev-late .cal-day-count{background:var(--red);color:#fff;}
+.cal-day.sev-today .cal-day-count{background:var(--amber);color:#fff;}
+.cal-day.sev-proche .cal-day-count{background:var(--blue-600);color:#fff;}
+.cal-day-dots{display:flex;gap:3px;flex-wrap:wrap;}
+.cal-day-dots i{width:6px;height:6px;border-radius:50%;display:inline-block;background:var(--amber);}
+.cal-day-dots i.late{background:var(--red);}
+.cal-day-dots i.today{background:var(--amber);}
+.cal-day-dots i.proche{background:var(--blue-500);}
+.cal-day-dots i.ok{background:var(--green);}
+.cal-legend-pro{
+  display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:10px;padding:0 2px;
+  font-size:11px;color:var(--text-400);font-weight:500;
+}
+.cal-legend-pro span{display:inline-flex;align-items:center;gap:6px;}
+.cal-legend-pro i{width:9px;height:9px;border-radius:3px;display:inline-block;}
+.cal-agenda{
+  border:1px solid var(--line);border-radius:12px;background:var(--surface);
+  min-height:320px;display:flex;flex-direction:column;overflow:hidden;
+}
+.cal-agenda-head{
+  padding:12px 14px;border-bottom:1px solid var(--line);background:var(--bg-subtle);
+}
+.cal-agenda-head .eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-400);margin-bottom:2px;}
+.cal-agenda-head h4{font-size:14px;font-weight:700;color:var(--text-900);margin:0;}
+.cal-agenda-body{padding:10px 12px 14px;overflow-y:auto;max-height:420px;flex:1;}
+.cal-agenda-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+  min-height:220px;text-align:center;color:var(--text-400);font-size:12.5px;padding:24px;
+}
+.cal-agenda-empty svg{width:28px;height:28px;opacity:.45;}
+.cal-card{
+  border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-bottom:8px;
+  background:var(--surface);transition:border-color .15s;
+}
+.cal-card:last-child{margin-bottom:0;}
+.cal-card:hover{border-color:#c5d2e8;}
+.cal-card.sev-late{border-left:3px solid var(--red);}
+.cal-card.sev-today{border-left:3px solid var(--amber);}
+.cal-card.sev-proche{border-left:3px solid var(--blue-500);}
+.cal-card.sev-ok{border-left:3px solid var(--green);}
+.cal-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;}
+.cal-card-top .title{font-size:13px;font-weight:700;color:var(--text-900);line-height:1.3;}
+.cal-card-meta{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:11.5px;color:var(--text-600);margin-bottom:8px;}
+.cal-card-meta span{display:inline-flex;align-items:center;gap:4px;}
+.cal-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cal-card-foot .mono{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--text-900);}
+@media (max-width:980px){
+  .cal-fiscal-layout{grid-template-columns:1fr;}
+  .cal-month-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .cal-day{min-height:52px;}
+}
 .modal-subtitle{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--blue-600);padding-top:12px;margin-top:2px;border-top:1px solid var(--line);}
 .modal-subtitle:first-child{border-top:none;padding-top:0;margin-top:0;}
 .modal-foot{display:flex;justify-content:flex-end;gap:9px;padding:16px 20px;border-top:1px solid var(--line);}
@@ -1055,6 +1175,7 @@ function renderObligationKpis(){
 
 /* ================= CALENDRIER DES ÉCHÉANCES (dashboard) ================= */
 let calendarViewDate = new Date();
+let calendarSelectedDay = null;
 function getMonthMatrix(year, month){
   const first = new Date(year, month, 1);
   const startDow = (first.getDay()+6)%7; // lundi = 0
@@ -1064,6 +1185,16 @@ function getMonthMatrix(year, month){
   for(let d=1; d<=daysInMonth; d++) cells.push(d);
   while(cells.length%7!==0) cells.push(null);
   return cells;
+}
+function calSeverity(o){
+  const bucket = o.echeance_bucket || '';
+  if(o.statut_effectif === 'penalite' || bucket === 'retard') return 'late';
+  if(bucket === 'aujourdhui') return 'today';
+  if(bucket === 'proche') return 'proche';
+  return 'ok';
+}
+function calSeverityRank(sev){
+  return { late:0, today:1, proche:2, ok:3 }[sev] ?? 9;
 }
 function getEcheancesForMonth(year, month){
   const map = {};
@@ -1075,7 +1206,17 @@ function getEcheancesForMonth(year, month){
       (map[echeance.getDate()] = map[echeance.getDate()]||[]).push(t);
     }
   });
+  Object.keys(map).forEach(d=>{
+    map[d].sort((a,b)=> calSeverityRank(calSeverity(a)) - calSeverityRank(calSeverity(b)));
+  });
   return map;
+}
+function dayWorstSeverity(items){
+  if(!items || !items.length) return null;
+  return items.reduce((worst, o)=>{
+    const s = calSeverity(o);
+    return calSeverityRank(s) < calSeverityRank(worst) ? s : worst;
+  }, 'ok');
 }
 function renderCalendar(){
   if(!document.getElementById('calendarGrid')) return;
@@ -1087,31 +1228,132 @@ function renderCalendar(){
   const cells = getMonthMatrix(year, month);
   const echMap = getEcheancesForMonth(year, month);
   const today = new Date();
-  document.getElementById('calendarGrid').innerHTML = cells.map(day=>{
-    if(day===null) return `<div class="cal-cell empty"></div>`;
-    const has = echMap[day];
-    const isToday = day===today.getDate() && month===today.getMonth() && year===today.getFullYear();
-    return `<div class="cal-cell ${has?'has-event':''} ${isToday?'is-today':''}" ${has?`onclick="showCalendarDay(${day})"`:''}>
-      ${day}${has?'<span class="dot"></span>':''}
+  const isCurrentMonth = today.getFullYear()===year && today.getMonth()===month;
+
+  let nLate=0, nToday=0, nProche=0, nOk=0, nTotal=0;
+  Object.values(echMap).forEach(list=>{
+    list.forEach(o=>{
+      nTotal++;
+      const s = calSeverity(o);
+      if(s==='late') nLate++;
+      else if(s==='today') nToday++;
+      else if(s==='proche') nProche++;
+      else nOk++;
+    });
+  });
+  const kpisEl = document.getElementById('calMonthKpis');
+  if(kpisEl){
+    kpisEl.innerHTML = `
+      <div class="cal-kpi-chip late"><span class="n">${nLate}</span><span class="l">En retard</span></div>
+      <div class="cal-kpi-chip today"><span class="n">${nToday}</span><span class="l">Aujourd'hui</span></div>
+      <div class="cal-kpi-chip soon"><span class="n">${nProche}</span><span class="l">≤ 7 jours</span></div>
+      <div class="cal-kpi-chip ok"><span class="n">${nOk}</span><span class="l">À venir</span></div>`;
+  }
+  const hint = document.getElementById('calMonthHint');
+  if(hint) hint.textContent = nTotal ? `${nTotal} échéance${nTotal>1?'s':''} ouverte${nTotal>1?'s':''}` : 'Aucune échéance';
+
+  if(calendarSelectedDay == null && isCurrentMonth){
+    calendarSelectedDay = today.getDate();
+  } else if(calendarSelectedDay != null){
+    const dim = new Date(year, month+1, 0).getDate();
+    if(calendarSelectedDay > dim) calendarSelectedDay = dim;
+  }
+
+  document.getElementById('calendarGrid').innerHTML = cells.map((day, idx)=>{
+    if(day===null) return `<div class="cal-day empty"></div>`;
+    const items = echMap[day] || [];
+    const sev = dayWorstSeverity(items);
+    const isToday = isCurrentMonth && day===today.getDate();
+    const isSelected = calendarSelectedDay === day;
+    const dow = idx % 7;
+    const isWeekend = dow >= 5;
+    const dots = items.slice(0,3).map(o=>`<i class="${calSeverity(o)}"></i>`).join('');
+    const count = items.length > 1 ? `<span class="cal-day-count">${items.length}</span>` : (items.length===1 ? `<span class="cal-day-count">1</span>` : '');
+    const classes = [
+      'cal-day',
+      items.length ? 'has-items' : '',
+      sev ? `sev-${sev}` : '',
+      isToday ? 'is-today' : '',
+      isSelected ? 'is-selected' : '',
+      isWeekend ? 'is-weekend' : '',
+    ].filter(Boolean).join(' ');
+    return `<div class="${classes}" role="button" tabindex="0" onclick="showCalendarDay(${day})" onkeydown="if(event.key==='Enter')showCalendarDay(${day})">
+      <span class="cal-day-num">${day}</span>
+      <div class="cal-day-meta">${count}<span class="cal-day-dots">${dots}</span></div>
     </div>`;
   }).join('');
-  document.getElementById('calendarDetails').innerHTML = '';
+
+  if(calendarSelectedDay != null){
+    showCalendarDay(calendarSelectedDay, true);
+  } else {
+    const details = document.getElementById('calendarDetails');
+    const title = document.getElementById('calAgendaTitle');
+    if(title) title.textContent = 'Sélectionnez une date';
+    if(details) details.innerHTML = `<div class="cal-agenda-empty"><svg><use href="#i-clock"/></svg><div>Sélectionnez un jour du calendrier pour afficher les obligations à suivre.</div></div>`;
+  }
 }
 function calNav(delta){
   calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth()+delta, 1);
+  const today = new Date();
+  if(calendarViewDate.getFullYear()===today.getFullYear() && calendarViewDate.getMonth()===today.getMonth()){
+    calendarSelectedDay = today.getDate();
+  } else {
+    calendarSelectedDay = 1;
+  }
   renderCalendar();
 }
-function showCalendarDay(day){
+function calGoToday(){
+  const today = new Date();
+  calendarViewDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  calendarSelectedDay = today.getDate();
+  renderCalendar();
+}
+function showCalendarDay(day, fromRender){
+  calendarSelectedDay = day;
+  if(!fromRender){
+    document.querySelectorAll('#calendarGrid .cal-day.is-selected').forEach(el=>el.classList.remove('is-selected'));
+    const cells = document.querySelectorAll('#calendarGrid .cal-day:not(.empty)');
+    cells.forEach(el=>{
+      if(Number(el.querySelector('.cal-day-num')?.textContent)===Number(day)) el.classList.add('is-selected');
+    });
+  }
   const year = calendarViewDate.getFullYear();
   const month = calendarViewDate.getMonth();
   const items = getEcheancesForMonth(year, month)[day] || [];
-  document.getElementById('calendarDetails').innerHTML = items.length ? `
-    <div class="cal-details-head">Échéances du ${pad2(day)}/${pad2(month+1)}/${year}</div>
-    ${items.map(o=>{
-      const badge = o.statut_effectif === 'penalite' ? 'penalite' : (o.statut === 'a_declarer' ? 'non_declare' : o.statut);
-      return `<div class="cal-details-item"><span><b>${o.contribuable_nom}</b> — ${o.type_nom} (${o.periode} ${o.annee})</span><span class="badge ${badgeClass(badge === 'justificatif_depose' ? 'declare' : badge)}">${statutLabel(badge)}</span></div>`;
-    }).join('')}
-  ` : '';
+  const monthNames=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const title = document.getElementById('calAgendaTitle');
+  if(title) title.textContent = `${pad2(day)} ${monthNames[month]} ${year}`;
+  const details = document.getElementById('calendarDetails');
+  if(!details) return;
+  if(!items.length){
+    details.innerHTML = `<div class="cal-agenda-empty"><svg><use href="#i-check"/></svg><div>Aucune échéance ouverte ce jour-là.</div></div>`;
+    return;
+  }
+  details.innerHTML = items.map(o=>{
+    const sev = calSeverity(o);
+    const badge = o.statut_effectif === 'penalite' ? 'penalite' : (o.statut === 'a_declarer' ? 'non_declare' : o.statut);
+    const jours = o.jours_restants;
+    const joursTxt = jours==null ? '—' : (jours<0 ? `Retard ${-jours} j` : (jours===0 ? "Aujourd'hui" : `J−${jours}`));
+    const piece = o.has_justificatif ? 'Justificatif joint' : 'Pièce manquante';
+    const montant = o.montant != null ? fmtFCFA(o.montant) : '—';
+    return `<article class="cal-card sev-${sev}">
+      <div class="cal-card-top">
+        <div class="title">${o.type_nom}</div>
+        <span class="badge ${badgeClass(badge === 'justificatif_depose' ? 'declare' : badge)}">${statutLabel(badge)}</span>
+      </div>
+      <div class="cal-card-meta">
+        <span><b>${o.contribuable_nom}</b></span>
+        <span>${o.periode_label||o.periode} ${o.annee}</span>
+        <span>${o.organisme||'—'}</span>
+        <span>${joursTxt}</span>
+        <span>${piece}</span>
+      </div>
+      <div class="cal-card-foot">
+        <span class="mono">${montant}</span>
+        <a class="btn btn-ghost" href="{{ route('declarations.index') }}" style="padding:5px 10px;font-size:11.5px;text-decoration:none;">Ouvrir le suivi</a>
+      </div>
+    </article>`;
+  }).join('');
 }
 
 /* ================= HELPERS ================= */
