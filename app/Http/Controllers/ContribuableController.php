@@ -19,28 +19,20 @@ class ContribuableController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
-        return response()->json([
-            'success' => true,
-            'message' => 'Contribuable enregistré avec succès.',
-            'contribuable' => Contribuable::create($data),
-        ], 201);
+        return Contribuable::create($data);
     }
 
     public function update(Request $request, Contribuable $contribuable)
     {
         $data = $this->validated($request);
         $contribuable->update($data);
-        return response()->json([
-            'success' => true,
-            'message' => 'Contribuable modifié avec succès.',
-            'contribuable' => $contribuable->fresh(),
-        ]);
+        return $contribuable;
     }
 
     public function destroy(Contribuable $contribuable)
     {
         $contribuable->delete();
-        return response()->json(['success' => true, 'message' => 'Contribuable supprimé avec succès.']);
+        return response()->json(['success' => true]);
     }
 
     private function validated(Request $request): array

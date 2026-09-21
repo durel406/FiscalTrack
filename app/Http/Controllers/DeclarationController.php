@@ -7,7 +7,6 @@ use App\Document;
 use App\Obligation;
 use App\TrackedDocType;
 use App\Services\FiscalSuiviService;
-use App\Services\CloudFileStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
@@ -15,13 +14,11 @@ use Illuminate\Validation\ValidationException;
 class DeclarationController extends Controller
 {
     protected $suivi;
-    protected $files;
 
-    public function __construct(FiscalSuiviService $suivi, CloudFileStorage $files)
+    public function __construct(FiscalSuiviService $suivi)
     {
         $this->middleware('auth');
         $this->suivi = $suivi;
-        $this->files = $files;
     }
 
     public function page()
@@ -65,7 +62,7 @@ class DeclarationController extends Controller
             'organisme_defaut' => isset($data['organisme_defaut']) ? $data['organisme_defaut'] : null,
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Type d’obligation enregistré avec succès.', 'trackedDocType' => $type->toFront()], 201);
+        return response()->json(['trackedDocType' => $type->toFront()], 201);
     }
 
     public function updateTrackedDocType(Request $request, $id)
@@ -83,7 +80,7 @@ class DeclarationController extends Controller
         $type->organisme_defaut = isset($data['organisme_defaut']) ? $data['organisme_defaut'] : null;
         $type->save();
 
-        return response()->json(['success' => true, 'message' => 'Type d’obligation modifié avec succès.', 'trackedDocType' => $type->toFront()]);
+        return response()->json(['trackedDocType' => $type->toFront()]);
     }
 
     public function destroyTrackedDocType($id)
@@ -98,7 +95,7 @@ class DeclarationController extends Controller
 
         $type->delete();
 
-        return response()->json(['success' => true, 'message' => 'Type d’obligation supprimé avec succès.']);
+        return response()->json(['success' => true]);
     }
 
     public function updateDeadline(Request $request, $id)
@@ -131,8 +128,6 @@ class DeclarationController extends Controller
             'montant'             => 'nullable|integer|min:0',
             'statut'              => 'nullable|in:a_declarer,declare,justificatif_depose',
             'fichier'             => 'nullable|file|max:10240|mimes:pdf,png,jpg,jpeg',
-            'fichiers'            => 'nullable|array|max:20',
-            'fichiers.*'          => 'file|max:10240|mimes:pdf,png,jpg,jpeg',
             'document_nom'        => 'nullable|string|max:255',
         ]);
 
@@ -148,9 +143,7 @@ class DeclarationController extends Controller
             ? $data['organisme']
             : ($type->organisme_defaut ?: $contrib->organisme);
 
-        $files = $request->file('fichiers', []);
-        if (!$files && $request->hasFile('fichier')) $files = [$request->file('fichier')];
-        $hasFile = count($files) > 0;
+        $hasFile = $request->hasFile('fichier');
 
         $obligation = Obligation::create([
             'contribuable_id'     => $data['contribuable_id'],
@@ -167,8 +160,8 @@ class DeclarationController extends Controller
         ]);
 
         $documentFront = null;
-        $documentFronts = [];
-        foreach ($files as $file) {
+        if ($hasFile) {
+            $file = $request->file('fichier');
             $doc = new Document();
             $doc->nom = ! empty($data['document_nom'])
                 ? $data['document_nom']
@@ -178,14 +171,11 @@ class DeclarationController extends Controller
             $doc->obligation_id = $obligation->id;
             $doc->fournisseur = $organisme;
             $doc->montant = $obligation->montant ?: 0;
-            $stored = $this->files->put($file);
-            $doc->fichier_path = $stored['path'];
-            $doc->fichier_url = $stored['url'];
-            $doc->fichier_disk = $stored['disk'];
+            $doc->fichier_path = $file->store('documents', 'public');
             $doc->fichier_nom = $file->getClientOriginalName();
             $doc->fichier_mime = $file->getClientMimeType();
             $doc->save();
-            $documentFronts[] = $doc->load('contribuable')->toFront();
+            $documentFront = $doc->load('contribuable')->toFront();
         }
 
         $this->suivi->mirrorDeclarationStatut($obligation);
@@ -195,12 +185,9 @@ class DeclarationController extends Controller
             'obligation' => $obligation->load(['contribuable', 'trackedDocType', 'documents'])->toFront(),
             'kpis'       => $this->suivi->kpis(),
         ];
-        if ($documentFronts) {
-            $payload['documents'] = $documentFronts;
-            $payload['document'] = $documentFronts[0];
+        if ($documentFront) {
+            $payload['document'] = $documentFront;
         }
-        $payload['success'] = true;
-        $payload['message'] = count($documentFronts) . ' justificatif(s) enregistré(s) avec succès.';
 
         return response()->json($payload, 201);
     }
@@ -256,7 +243,7 @@ class DeclarationController extends Controller
         $obligation->delete();
         $this->suivi->syncNotifications();
 
-        return response()->json(['success' => true, 'message' => 'Obligation supprimée avec succès.', 'kpis' => $this->suivi->kpis()]);
+        return response()->json(['success' => true, 'kpis' => $this->suivi->kpis()]);
     }
 
     /**
@@ -268,29 +255,23 @@ class DeclarationController extends Controller
 
         $data = $request->validate([
             'nom'     => 'nullable|string|max:255',
-            'fichier' => 'nullable|file|max:10240|mimes:pdf,png,jpg,jpeg',
-            'fichiers' => 'required|array|min:1|max:20',
-            'fichiers.*' => 'file|max:10240|mimes:pdf,png,jpg,jpeg',
+            'fichier' => 'required|file|max:10240|mimes:pdf,png,jpg,jpeg',
         ]);
 
-        $documents = [];
-        foreach ($request->file('fichiers', []) as $file) {
-            $doc = new Document();
-            $doc->nom = isset($data['nom']) && $data['nom'] ? $data['nom'] : pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $doc->type = $obligation->trackedDocType->nom;
-            $doc->contribuable_id = $obligation->contribuable_id;
-            $doc->obligation_id = $obligation->id;
-            $doc->fournisseur = $obligation->organisme;
-            $doc->montant = 0;
-            $stored = $this->files->put($file);
-            $doc->fichier_path = $stored['path'];
-            $doc->fichier_url = $stored['url'];
-            $doc->fichier_disk = $stored['disk'];
-            $doc->fichier_nom = $file->getClientOriginalName();
-            $doc->fichier_mime = $file->getClientMimeType();
-            $doc->save();
-            $documents[] = $doc->load('contribuable')->toFront();
-        }
+        $file = $request->file('fichier');
+        $doc = new Document();
+        $doc->nom = isset($data['nom']) && $data['nom']
+            ? $data['nom']
+            : ('Justificatif — '.$obligation->trackedDocType->nom.' '.$obligation->periode.' '.$obligation->annee);
+        $doc->type = $obligation->trackedDocType->nom;
+        $doc->contribuable_id = $obligation->contribuable_id;
+        $doc->obligation_id = $obligation->id;
+        $doc->fournisseur = $obligation->organisme;
+        $doc->montant = 0;
+        $doc->fichier_path = $file->store('documents', 'public');
+        $doc->fichier_nom = $file->getClientOriginalName();
+        $doc->fichier_mime = $file->getClientMimeType();
+        $doc->save();
 
         // Statut automatique : pièce jointe => obligation clôturée
         $obligation->statut = Obligation::STATUT_JUSTIFICATIF;
@@ -303,12 +284,9 @@ class DeclarationController extends Controller
         $this->suivi->syncNotifications();
 
         return response()->json([
-            'documents'  => $documents,
-            'document'   => $documents[0],
+            'document'   => $doc->load('contribuable')->toFront(),
             'obligation' => $obligation->fresh(['contribuable', 'trackedDocType', 'documents'])->toFront(),
             'kpis'       => $this->suivi->kpis(),
-            'success'    => true,
-            'message'    => count($documents).' justificatif(s) enregistré(s) avec succès.',
         ], 201);
     }
 

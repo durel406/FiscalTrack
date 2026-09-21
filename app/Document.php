@@ -14,7 +14,7 @@ class Document extends Model
 {
     protected $fillable = [
         'nom', 'type', 'fournisseur', 'montant', 'contribuable_id', 'obligation_id',
-        'fichier_path', 'fichier_nom', 'fichier_mime', 'fichier_url', 'fichier_disk', 'archived_at',
+        'fichier_path', 'fichier_nom', 'fichier_mime', 'archived_at',
     ];
 
     protected $dates = ['archived_at'];
@@ -61,7 +61,7 @@ class Document extends Model
             'dateModif'      => $this->updated_at ? $this->updated_at->format('d/m/Y') : '—',
             'archivedDate'   => $this->archived_at ? $this->archived_at->format('d/m/Y') : null,
             'fileName'       => $this->fichier_nom,
-            'fileUrl'        => $this->fichier_url ?: ($this->fichier_path ? url('/documents/'.$this->id.'/fichier') : null),
+            'fileUrl'        => $this->fichier_path ? url('/documents/'.$this->id.'/fichier') : null,
             'fileMime'       => $this->fichier_mime,
         ];
     }

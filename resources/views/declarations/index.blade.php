@@ -143,7 +143,7 @@
       </div>
       <div class="field-row">
         <div class="field"><label>Montant à payer (FCFA)</label><input type="number" id="f-obl-montant" min="0" step="1" placeholder="Ex : 150000"></div>
-        <div class="field"><label>Justificatifs (optionnels)</label><input type="file" id="f-obl-fichier" accept=".pdf,.png,.jpg,.jpeg" multiple><div class="sub" style="font-size:11px;margin-top:4px;">Plusieurs fichiers peuvent être joints à cette obligation.</div></div>
+        <div class="field"><label>Justificatif (optionnel)</label><input type="file" id="f-obl-fichier" accept=".pdf,.png,.jpg,.jpeg"><div class="sub" style="font-size:11px;margin-top:4px;">Si joint, le statut passe automatiquement à « Justificatif déposé ».</div></div>
       </div>
       <div class="field"><label>Nom du document</label><input id="f-obl-doc-nom" placeholder="Ex : Quittance IGS T1 2026 (si fichier joint)"></div>
     </div>
@@ -161,7 +161,7 @@
       <p style="font-size:13px;color:var(--text-600);margin:0 0 12px;" id="oblJustifHint">Le dépôt d'une pièce clôture automatiquement l'obligation.</p>
       <input type="hidden" id="f-obl-justif-id">
       <div class="field"><label>Nom du document</label><input id="f-obl-justif-nom" placeholder="Ex : Quittance IGS T2 2026"></div>
-      <div class="field"><label>Fichiers (PDF / PNG / JPG)</label><input type="file" id="f-obl-justif-file" accept=".pdf,.png,.jpg,.jpeg" multiple></div>
+      <div class="field"><label>Fichier (PDF / PNG / JPG)</label><input type="file" id="f-obl-justif-file" accept=".pdf,.png,.jpg,.jpeg"></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" type="button" onclick="closeModal('modalOblJustificatif')">Annuler</button>

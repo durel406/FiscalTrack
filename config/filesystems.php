@@ -65,11 +65,6 @@ return [
             'endpoint' => env('AWS_ENDPOINT'),
         ],
 
-        'supabase' => [
-            'driver' => 'local',
-            'root' => storage_path('app/supabase-fallback'),
-        ],
-
     ],
 
     /*
