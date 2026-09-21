@@ -8,9 +8,16 @@ class Contribuable extends Model
 {
     protected $fillable = [
         'nom',
+        'nom_raison_sociale',
+        'prenom_sigle',
         'niu',
+        'activite_principale',
         'regime',
         'cat',
+        'centre_rattachement',
+        'ville',
+        'quartier',
+        'lieux_dit',
         'statut',
         'pass',
         'montant',

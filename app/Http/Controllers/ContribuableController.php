@@ -37,11 +37,18 @@ class ContribuableController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
-            'nom' => 'required|string|max:255',
+        $data = $request->validate([
+            'nom' => 'nullable|string|max:255',
+            'nom_raison_sociale' => 'required|string|max:255',
+            'prenom_sigle' => 'nullable|string|max:255',
             'niu' => 'nullable|string|max:50',
+            'activite_principale' => 'nullable|string|max:255',
             'regime' => 'nullable|string|max:100',
             'cat' => 'nullable|string|max:100',
+            'centre_rattachement' => 'nullable|string|max:255',
+            'ville' => 'nullable|string|max:255',
+            'quartier' => 'nullable|string|max:255',
+            'lieux_dit' => 'nullable|string|max:255',
             'pass' => 'nullable|string',
             'montant' => 'nullable|integer|min:0',
             't1' => 'nullable|integer|min:0', 't2' => 'nullable|integer|min:0',
@@ -56,5 +63,7 @@ class ContribuableController extends Controller
             'lieu' => 'nullable|string|max:255',
             'tel' => 'nullable|string|max:30',
         ]);
+        $data['nom'] = $data['nom_raison_sociale'];
+        return $data;
     }
 }

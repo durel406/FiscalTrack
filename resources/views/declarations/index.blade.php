@@ -80,7 +80,7 @@
               <option value="manquante">Sans justificatif</option>
               <option value="ok">Avec justificatif</option>
             </select>
-            <button class="reset-btn" type="button" onclick="resetObligationFilters()"><svg><use href="#i-refresh"/></svg>Reset</button>
+            <button class="reset-btn" type="button" onclick="resetObligationFilters()"><svg><use href="#i-refresh"/></svg>Réinitialiser</button>
           </div>
         </div>
         <div class="dossier-scroll" style="max-height:56vh;">

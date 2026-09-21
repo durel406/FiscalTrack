@@ -13,7 +13,7 @@
         <div class="field"><label>Mot de passe</label><input id="f-contrib-pass" type="text" placeholder="Ex : Pass2026"></div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Régime</label><select id="f-contrib-regime"><option>Réel</option><option>Simplifié</option><option>Classe</option><option>IGS Classe</option><option>NON PROFESSIONNEL</option><option>Autres</option></select><input type="text" id="f-contrib-regime-autre" class="autre-field" placeholder="Précisez le régime" style="display:none;"></div>
+        <div class="field"><label>Régime / Classe</label><select id="f-contrib-regime"><option value="">Sélectionner</option><option>Réel</option><option>Simplifié</option><option>Classe</option><option>Classe 1</option><option>Classe 2</option><option>Classe 3</option><option>Classe 4</option><option>Classe 5</option><option>Classe 6</option><option>Classe 7</option><option>Classe 8</option><option>Classe 9</option><option>IGS Classe</option><option>NON PROFESSIONNEL</option><option value="Autre">Autre</option></select><input type="text" id="f-contrib-regime-autre" class="autre-field" placeholder="Précisez le régime ou la classe" style="display:none;"></div>
         <div class="field"><label>Catégorie / classe</label><select id="f-contrib-cat"><option>Petite entreprise</option><option>Moyenne entreprise</option><option>Grande entreprise</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>Autres</option></select><input type="text" id="f-contrib-cat-autre" class="autre-field" placeholder="Précisez la catégorie / classe" style="display:none;"></div>
       </div>
       <div class="field-row">
@@ -93,7 +93,7 @@
       </div>
       <div class="field">
         <label>Fichier numérique (PDF, PNG)</label>
-        <input type="file" id="f-doc-file">
+        <input type="file" id="f-doc-file" required>
         <p id="doc-file-hint" style="display:none;font-size:11px;color:var(--text-400);margin-top:5px;">Laissez ce champ vide pour conserver le fichier déjà enregistré.</p>
       </div>
     </div>

@@ -12,8 +12,8 @@ Route::post('/login', 'Auth\LoginController@login')->middleware('guest');
 Route::post('/logout', 'Auth\LoginController@logout')->name('logout')->middleware('auth');
 
 Route::post('/contribuables', 'ContribuableController@store')->name('contribuables.store');
-Route::put('/contribuables/{id}', 'ContribuableController@update')->name('contribuables.update');
-Route::delete('/contribuables/{id}', 'ContribuableController@destroy')->name('contribuables.destroy');
+Route::put('/contribuables/{contribuable}', 'ContribuableController@update')->name('contribuables.update');
+Route::delete('/contribuables/{contribuable}', 'ContribuableController@destroy')->name('contribuables.destroy');
 Route::post('/dossier-suivi/enregistrer', [DossierSuiviController::class, 'store'])
     ->name('dossier-suivi.store');
 /*

@@ -42,7 +42,7 @@
       </div>
       <div class="field">
         <label>Fichier numérique (PDF, PNG)</label>
-        <input type="file" id="f-doc-file">
+        <input type="file" id="f-doc-file" required>
         <p id="doc-file-hint" style="display:none;font-size:11px;color:var(--text-400);margin-top:5px;">Laissez ce champ vide pour conserver le fichier déjà enregistré.</p>
       </div>
     </div>

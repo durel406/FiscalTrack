@@ -110,15 +110,17 @@ class DocumentController extends Controller
 
     private function validated(Request $request)
     {
-        return $request->validate([
+        $rules = [
             'nom'             => 'required|string|max:255',
             'type'            => 'nullable|string|max:120',
             'fournisseur'     => 'nullable|string|max:255',
             'montant'         => 'nullable|integer|min:0',
             'contribuable_id' => 'nullable|integer|exists:contribuables,id',
             'obligation_id'   => 'nullable|integer|exists:obligations,id',
-            'fichier'         => 'nullable|file|max:10240|mimes:pdf,png,jpg,jpeg',
-        ]);
+            'fichier'         => ($request->isMethod('post') ? 'required' : 'nullable').'|file|max:10240|mimes:pdf,png,jpg,jpeg',
+        ];
+
+        return $request->validate($rules);
     }
 
     private function fields(array $data)

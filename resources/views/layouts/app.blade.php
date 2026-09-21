@@ -32,6 +32,9 @@
   --green-bg:#e4f7ee;
   --red:#d94c4c;
   --red-bg:#fbe9e9;
+  --table-header-bg:#dceefe;
+  --table-header-border:#b8d8f2;
+  --table-header-text:#1f4f82;
   --title-navy:#1f3864;
   --dossier-orange:#cf6f3f;
   --dossier-orange-dark:#bb5f31;
@@ -54,6 +57,9 @@ body.dark{
   --amber-bg:#3a2f16;
   --green-bg:#123527;
   --red-bg:#3a1c1c;
+  --table-header-bg:#c9e5fa;
+  --table-header-border:#9ec8eb;
+  --table-header-text:#173f69;
   --ice-100:#132745;
   --title-navy:#16294f;
   --dossier-orange:#8a4a2b;
@@ -66,6 +72,7 @@ body.dark input, body.dark select, body.dark textarea{color:var(--text-900);}
 /* Les <input type="date"> gardent un rendu natif clair (texte noir sur fond clair) même en
    mode sombre : le calendrier natif du navigateur ne se restylise pas proprement en sombre. */
 body.dark input[type="date"]{color-scheme:light;background:#f4f6fa;color:#111827;border-color:#c7cfdd;}
+body.dark #f-obl-deadline{color:#000 !important;color-scheme:light;background:#f4f6fa;}
 body.dark .filter-select, body.dark .search-box, body.dark .field input, body.dark .field select,
 body.dark #f-trackeddoc-nom{background:var(--bg);}
 body.dark .btn-primary{filter:brightness(.95);}
@@ -90,6 +97,7 @@ h1,h2,h3,.display{font-family:'Sora',sans-serif;}
 .num{font-family:'JetBrains Mono',monospace;}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
 input,select{font-family:inherit;}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
 ::-webkit-scrollbar{width:8px;height:8px;}
 ::-webkit-scrollbar-thumb{background:#c7d3e6;border-radius:8px;}
 ::-webkit-scrollbar-track{background:transparent;}
@@ -156,10 +164,13 @@ input,select{font-family:inherit;}
 }
 .nav-item.hidden{display:none;}
 .nav-sub.hidden{display:none;}
-.nav-item.nav-parent{cursor:default;opacity:.95;font-weight:600;}
-.nav-item.nav-parent:hover{background:transparent;color:rgba(255,255,255,.85);}
+.nav-item.nav-parent{cursor:pointer;opacity:.95;font-weight:600;}
+.nav-item.nav-parent:hover{background:rgba(255,255,255,.07);color:#fff;}
 .nav-item.nav-parent.active::before{display:none;}
-.nav-sub{display:flex;flex-direction:column;gap:1px;margin:0 0 6px 8px;padding-left:10px;border-left:1px solid rgba(255,255,255,.12);}
+.nav-parent .nav-parent-chevron{margin-left:auto;width:14px;height:14px;transition:transform .2s ease;}
+.nav-parent.open .nav-parent-chevron{transform:rotate(180deg);}
+.nav-sub{display:none;flex-direction:column;gap:1px;margin:0 0 6px 8px;padding-left:10px;border-left:1px solid rgba(255,255,255,.12);}
+.nav-sub.open{display:flex;}
 .nav-item.nav-sub-item{padding:8px 10px;font-size:12.5px;color:rgba(255,255,255,.72);}
 .nav-item.nav-sub-item svg{width:15px;height:15px;}
 
@@ -188,6 +199,12 @@ input,select{font-family:inherit;}
 }
 .icon-btn:hover{background:var(--bg);}
 .icon-btn svg{width:19px;height:19px;}
+.language-select{
+  height:34px;padding:0 9px;border:1px solid var(--line);border-radius:9px;
+  background:var(--surface);color:var(--text-600);font-size:11.5px;font-weight:600;
+  cursor:pointer;outline:none;
+}
+.language-select:hover,.language-select:focus{border-color:var(--blue-400);color:var(--text-900);}
 .dot{position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff;}
 .user-chip{display:flex;align-items:center;gap:9px;padding:6px 10px 6px 6px;border-radius:11px;}
 .user-chip:hover{background:var(--bg);}
@@ -337,8 +354,8 @@ tbody tr.row-new td{animation:rowFlash 2.4s ease-out;}
 
 table{width:100%;border-collapse:collapse;}
 thead th{
-  text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-400);
-  padding:10px 18px;border-bottom:1px solid var(--line);background:var(--bg-subtle);font-weight:700;
+  text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--table-header-text);
+  padding:10px 18px;border-bottom:1px solid var(--table-header-border);background:var(--table-header-bg);font-weight:700;
 }
 tbody td{padding:12px 18px;font-size:13px;border-bottom:1px solid var(--line);color:var(--text-900);vertical-align:middle;}
 tbody tr:last-child td{border-bottom:none;}
@@ -392,12 +409,12 @@ tbody tr:hover{background:var(--bg-subtle);}
 .dossier-scroll{overflow-x:auto;overflow-y:auto;max-height:62vh;}
 table.dossier-table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;}
 .dossier-table thead th{
-  background:var(--dossier-orange);color:#fff;border:1px solid rgba(255,255,255,.55);
+  background:var(--table-header-bg);color:var(--table-header-text);border:1px solid var(--table-header-border);
   font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;font-weight:700;
   padding:9px 12px;white-space:nowrap;text-align:center;position:sticky;top:0;z-index:3;
 }
 .dossier-table thead tr:first-child th{top:0;}
-.dossier-table-2row thead tr:last-child th{top:32px;background:var(--dossier-orange-dark);}
+.dossier-table-2row thead tr:last-child th{top:32px;background:var(--table-header-bg);color:var(--table-header-text);}
 .dossier-table tbody td{
   padding:10px 12px;font-size:12.5px;white-space:nowrap;border:1px solid var(--line);color:var(--text-900);text-align:center;
 }
@@ -689,10 +706,10 @@ th.sticky-col{z-index:5;}
         <a href="{{ route('archives.index') }}" class="nav-item {{ request()->routeIs('archives.*') ? 'active' : '' }}" data-roles="admin,comptable">
           <svg><use href="#i-archive"/></svg><span>Archives</span>
         </a>
-        <div class="nav-item nav-parent {{ request()->routeIs('declarations.*') ? 'active' : '' }}" data-roles="admin,fiscal">
-          <svg><use href="#i-file"/></svg><span>Déclaration</span>
+        <div class="nav-item nav-parent {{ request()->routeIs('declarations.*') ? 'active open' : '' }}" id="declarationMenu" role="button" tabindex="0" aria-expanded="{{ request()->routeIs('declarations.*') ? 'true' : 'false' }}" data-roles="admin,fiscal">
+          <svg><use href="#i-file"/></svg><span>Déclaration</span><svg class="nav-parent-chevron"><use href="#i-chevron"/></svg>
         </div>
-        <div class="nav-sub" data-roles="admin,fiscal">
+        <div class="nav-sub {{ request()->routeIs('declarations.*') ? 'open' : '' }}" id="declarationSubmenu" data-roles="admin,fiscal">
           <a href="{{ route('declarations.index') }}" class="nav-item nav-sub-item {{ request()->routeIs('declarations.index') ? 'active' : '' }}" data-roles="admin,fiscal">
             <svg><use href="#i-file"/></svg><span>Obligations</span>
           </a>
@@ -733,6 +750,12 @@ th.sticky-col{z-index:5;}
       <svg id="darkModeIcon"><use href="#i-moon"/></svg>
     </button>
 
+    <label class="sr-only" for="languageSelect">Langue</label>
+    <select class="language-select" id="languageSelect" title="Changer de langue" aria-label="Changer de langue">
+      <option value="fr">FR</option>
+      <option value="en">EN</option>
+    </select>
+
     <button class="icon-btn" id="fullscreenBtn" title="Plein écran (F11)">
       <svg id="fullscreenIcon"><use href="#i-expand"/></svg>
     </button>
@@ -765,9 +788,9 @@ th.sticky-col{z-index:5;}
       <button type="button" id="profileMenuBtn"><svg><use href="#i-user"/></svg>Mon profil</button>
       <button type="button" id="settingsMenuBtn"><svg><use href="#i-settings"/></svg>Paramètres</button>
       <hr>
-      <button class="danger" id="logoutBtn" type="button"><svg><use href="#i-logout"/></svg>Se déconnecter</button>
+      <button class="danger" id="logoutBtn" type="submit" form="logout-form"><svg><use href="#i-logout"/></svg>Se déconnecter</button>
     </div>
-    <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">
+    <form id="logout-form" action="{{ route('logout') }}" method="POST" onsubmit="return window.confirm('Voulez-vous vraiment vous déconnecter ?');" style="display:none;">
       @csrf
     </form>
   </header>
@@ -799,8 +822,6 @@ let users = @json($initialUsers ?? []);
 /* Toutes ces listes sont vides par défaut : dans l'application réelle (Laravel + MySQL),
    elles seront alimentées depuis la base de données. Les exemples ont été retirés. */
    let contribuables = (@json($initialContribuables ?? [])).map(normalizeContrib);
-let dossier = { nom:'TIA INTERNATIONNAL LTD', annee:2026, configured:false };
-
 let documents = @json($initialDocuments ?? []);
 
 let archivedDocuments = @json($initialArchives ?? []);
@@ -926,33 +947,29 @@ function goTo(section){
   if(sectionRoutes[section]) window.location.href = sectionRoutes[section];
 }
 
-/* ================= CONTRIBUABLES : configuration du dossier ================= */
+function toggleDeclarationMenu(force){
+  const menu = document.getElementById('declarationMenu');
+  const submenu = document.getElementById('declarationSubmenu');
+  if(!menu || !submenu) return;
+  const open = force === undefined ? !menu.classList.contains('open') : force;
+  menu.classList.toggle('open', open);
+  submenu.classList.toggle('open', open);
+  menu.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+const declarationMenu = document.getElementById('declarationMenu');
+if(declarationMenu){
+  declarationMenu.addEventListener('click', ()=>toggleDeclarationMenu());
+  declarationMenu.addEventListener('keydown', event=>{
+    if(event.key === 'Enter' || event.key === ' '){
+      event.preventDefault();
+      toggleDeclarationMenu();
+    }
+  });
+}
+
+/* ================= CONTRIBUABLES ================= */
 function showContribView(){
-  const setupOn = !dossier.configured;
-  document.getElementById('contribSetupView').style.display = setupOn ? 'block' : 'none';
-  document.getElementById('contribDossierView').style.display = setupOn ? 'none' : 'block';
-  if(setupOn){
-    document.getElementById('setupNom').value = dossier.nom || '';
-    document.getElementById('setupAnnee').value = dossier.annee || new Date().getFullYear();
-  } else {
-    renderDossierHeader();
-    renderContribuables();
-  }
-}
-function renderDossierHeader(){
-  document.getElementById('dossierTitle').textContent = `SUIVI DES DOSSIERS : ${dossier.nom.toUpperCase()} ${dossier.annee}`;
-  document.getElementById('igsYearHeader').textContent = `IGS ${dossier.annee}`;
-}
-function submitSetup(){
-  const nom = document.getElementById('setupNom').value.trim();
-  const annee = document.getElementById('setupAnnee').value.trim();
-  if(!nom || !annee){ alert("Le nom de l'entreprise et l'année sont obligatoires."); return; }
-  dossier = { nom, annee, configured:true };
-  showContribView();
-}
-function backToSetup(){
-  dossier.configured = false;
-  showContribView();
+  renderContribuables();
 }
 document.querySelectorAll('.nav-item[data-section]').forEach(el=>{
   el.addEventListener('click', ()=>goTo(el.dataset.section));
@@ -986,6 +1003,224 @@ function applyDarkMode(on){
   if(darkModeBtn) darkModeBtn.title = on ? 'Passer en mode clair' : 'Passer en mode sombre';
   try{ localStorage.setItem('fiscaltrack-dark', on ? '1' : '0'); }catch(e){}
 }
+
+const translations = {
+  en: {
+    'Général':'General', 'Tableau de bord':'Dashboard', 'Accueil':'Home',
+    'Gestion':'Management', 'Contribuables':'Taxpayers', 'Documents (GED)':'Documents (DMS)',
+    'Archives':'Archives', 'Déclaration':'Declarations', 'Obligations':'Obligations',
+    "Types d'obligations":'Obligation types', 'Suivi':'Monitoring', 'Notifications':'Notifications',
+    'Comptes utilisateurs':'User accounts', 'Mode sombre':'Dark mode',
+    'Passer en mode clair':'Switch to light mode', 'Passer en mode sombre':'Switch to dark mode',
+    'Changer de langue':'Change language', 'Plein écran (F11)':'Fullscreen (F11)',
+    'Quitter le plein écran':'Exit fullscreen', 'Mon profil':'My profile', 'Paramètres':'Settings',
+    'Se déconnecter':'Log out', 'Tout marquer comme lu':'Mark all as read',
+    'Ajouter un contribuable':'Add taxpayer', 'Modifier le contribuable':'Edit taxpayer',
+    'Fiche du contribuable':'Taxpayer details', 'Enregistrer':'Save',
+    'Enregistrer les modifications':'Save changes', 'Annuler':'Cancel', 'Fermer':'Close',
+    'Réinitialiser':'Reset', 'Toutes catégories':'All categories', 'Tous régimes':'All tax regimes',
+    'Ajouter un document':'Add document', 'Modifier le document':'Edit document',
+    'Ajouter un document à suivre':'Add tracked document', 'Aperçu':'Preview',
+    'Télécharger':'Download', 'Archiver':'Archive', 'Restaurer':'Restore',
+    'Supprimer':'Delete', 'Consulter':'View', 'Modifier':'Edit', 'Actions':'Actions',
+    'Bonjour,':'Hello,', 'Voir les obligations':'View obligations',
+    'Pilotage du suivi fiscal et social — échéances, retards et pièces manquantes.':'Tax and social monitoring — deadlines, delays and missing documents.',
+    'Contribuables actifs':'Active taxpayers', 'Obligations en attente':'Pending obligations',
+    'En retard':'Overdue', 'Échéance ≤ 7 jours':'Due within 7 days', 'Sans justificatif':'Missing document',
+    'Documents dans la GED':'Documents in DMS', 'Taux de conformité':'Compliance rate',
+    'Obligations clôturées':'Closed obligations', 'Échéances à venir':'Upcoming deadlines',
+    'Prochaines obligations non clôturées':'Next open obligations', 'Alertes prioritaires':'Priority alerts',
+    'Retards et échéances proches (J−7)':'Delays and upcoming deadlines (D−7)',
+    'Calendrier fiscal':'Tax calendar', 'Vue mensuelle des échéances — cliquez un jour pour le détail opérationnel':'Monthly deadline view — click a day for operational details',
+    'Voir le suivi':'View tracking', 'Mois précédent':'Previous month', 'Aujourd’hui':'Today',
+    "Aujourd'hui":'Today', 'Mois suivant':'Next month', 'Agenda du jour':'Today\'s agenda',
+    'Sélectionnez une date':'Select a date', 'Sélectionnez un jour du calendrier pour afficher les obligations à suivre.':'Select a day on the calendar to view obligations to track.',
+    'Échéance du jour':'Due today', 'Proche (≤ 7 j)':'Upcoming (≤ 7 days)', 'À venir':'Upcoming',
+    'Documents — Mini-GED':'Documents — Mini-DMS', 'Factures, avis d\'imposition, quittances et justificatifs centralisés.':'Invoices, tax notices, receipts and supporting documents in one place.',
+    'Gestion des documents':'Document management', 'Tous contribuables':'All taxpayers', 'Document':'Document',
+    'Date de création':'Created on', 'Dernière modification':'Last modified', 'Fichier numérique (PDF, PNG)':'Digital file (PDF, PNG)',
+    'Laissez ce champ vide pour conserver le fichier déjà enregistré.':'Leave blank to keep the existing file.',
+    'Fiche du document':'Document details', 'Date d\'ajout':'Added on', 'Aperçu du fichier':'File preview',
+    'Archives':'Archives', 'Documents archivés — restaurez-les ou supprimez-les définitivement.':'Archived documents — restore or permanently delete them.',
+    'Documents archivés':'Archived documents', 'Archivé le':'Archived on', 'Rechercher un document archivé…':'Search archived documents…',
+    'Obligations':'Obligations', 'Suivi des obligations fiscales':'Tax obligation tracking',
+    'Nouvelle obligation':'New obligation', 'En attente':'Pending', 'Échéance ≤ 7 j':'Due within 7 days',
+    'Obligations à suivre':'Obligations to track', 'Filtres opérationnels — le statut se met à jour selon échéance et pièce jointe.':'Operational filters — status updates according to deadline and attachment.',
+    'Nom ou NIU…':'Name or tax ID…', 'Toutes années':'All years', 'Toutes périodes':'All periods',
+    'Tous types':'All types', 'Tous organismes':'All organizations', 'Tous statuts':'All statuses',
+    'À déclarer':'To declare', 'Justificatif déposé':'Document submitted', 'Toutes échéances':'All deadlines',
+    'Proches (J−7)':'Upcoming (D−7)', 'Sans date':'No date', 'OK / clôturées':'OK / closed',
+    'Pièce : toutes':'Document: all', 'Manquante':'Missing', 'Avec justificatif':'With document',
+    'Contribuables non en règle':'Non-compliant taxpayers', 'Au moins une obligation ouverte (sans justificatif / en retard).':'At least one open obligation (missing document / overdue).',
+    'Type d\'obligation':'Obligation type', 'Année fiscale':'Tax year', 'Période':'Period', 'Date limite':'Deadline',
+    'Organisme':'Organization', 'Montant à payer (FCFA)':'Amount due (XAF)', 'Justificatif (optionnel)':'Supporting document (optional)',
+    'Nom du document':'Document name', 'Joindre un justificatif':'Attach supporting document', 'Déposer':'Submit',
+    'Comptes utilisateurs':'User accounts', 'Créer et gérer les accès des membres du cabinet.':'Create and manage firm member access.',
+    'Créer un compte':'Create account', 'Membres du cabinet':'Firm members', 'Utilisateur':'User',
+    'Rôle':'Role', 'Statut':'Status', 'Prénom':'First name', 'Nom':'Last name',
+    'Email':'Email', 'Mot de passe temporaire':'Temporary password', 'Créer le compte':'Create account',
+    'Nom du contribuable':'Taxpayer name', 'Nom du document':'Document name',
+    'Contribuable associé':'Associated taxpayer', 'Fournisseur':'Supplier',
+    'Montant (FCFA)':'Amount (XAF)', 'Lieu':'Location', 'Téléphone':'Phone',
+    'Régime':'Tax regime', 'Catégorie / classe':'Category / class', 'Mot de passe':'Password',
+    'Identification':'Identification', 'Paiements & charges':'Payments & charges',
+    'Frais de suivi':'Tracking fees', 'Payé':'Paid', 'Non payé':'Unpaid',
+    'Non déclaré':'Not declared', 'Déclaré':'Declared', 'Pénalité':'Penalty', 'Aucun':'None',
+    'Actif':'Active', 'Suspendu':'Suspended', 'Tous les types':'All types',
+    'Rechercher un document…':'Search documents…', 'Rechercher (nom, NIU…)':'Search (name, tax ID…)',
+    "Aucun document à suivre configuré pour le moment.":'No tracked document configured yet.',
+    'Répertoire des contribuables suivis par le cabinet.':'Directory of taxpayers managed by the firm.',
+    'Rechercher un contribuable…':'Search taxpayers…', 'Filtrer par NIU':'Filter by tax ID',
+    'Tous régimes/classes':'All regimes/classes', 'Classe 1':'Class 1', 'Classe 2':'Class 2',
+    'Classe 3':'Class 3', 'Classe 4':'Class 4', 'Classe 5':'Class 5', 'Classe 6':'Class 6',
+    'Classe 7':'Class 7', 'Classe 8':'Class 8', 'Classe 9':'Class 9', 'NON PROFESSIONNEL':'NON-PROFESSIONAL',
+    'Autre':'Other', 'Sélectionner':'Select', 'Nom/Raison sociale':'Name/Company name',
+    'Prénom/Sigle':'First name/Acronym', 'Activité principale':'Main activity',
+    'Centre de rattachement':'Tax center', 'Ville':'City', 'Quartier':'District', 'Lieux-dit':'Locality',
+    'Répertoire des contribuables':'Taxpayer directory', 'Aucun contribuable à exporter.':'No taxpayer to export.',
+    'Aucun contribuable ne correspond à votre recherche. Cliquez sur « Ajouter un contribuable » pour commencer.':'No taxpayer matches your search. Click “Add taxpayer” to begin.',
+    'Précisez le régime ou la classe':'Specify the regime or class',
+    'Documents archivés — restaurez-les ou supprimez-les définitivement.':'Archived documents — restore or permanently delete them.',
+    'Rechercher un document archivé…':'Search archived documents…', 'Date de création':'Created on',
+    'Dernière modification':'Last modified', 'Archivé le':'Archived on',
+    'Aucun document ne correspond à votre recherche.':'No document matches your search.',
+    'Aucun document archivé.':'No archived document.', 'Aucune alerte d\'échéance pour le moment.':'No deadline alert at the moment.',
+    'Aucune échéance ouverte. Créez des obligations depuis l\'écran Déclaration.':'No open deadline. Create obligations from the Declarations screen.',
+    'Aucune alerte prioritaire.':'No priority alert.', 'Aucune échéance':'No deadline',
+    'échéance':'deadline', 'échéances':'deadlines', 'ouverte':'open', 'ouvertes':'open',
+    'Sélectionnez un jour du calendrier pour afficher les obligations à suivre.':'Select a calendar day to view obligations to track.',
+    'Aucune échéance ouverte ce jour-là.':'No open deadline on this day.', 'Ouvrir le suivi':'Open tracking',
+    'Pièce OK':'Document OK', 'Pièce manquante':'Document missing', 'Justificatif joint':'Supporting document attached',
+    'Manquant':'Missing', 'Joint':'Attached', 'retard':'overdue', 'aujourd\'hui':'today',
+    'Échéance proche':'Upcoming deadline', 'Échéance dépassée':'Overdue deadline',
+    'Échéance aujourd\'hui':'Deadline today', 'dans':'in', 'jours':'days', 'jour':'day',
+    'Formulaire obligation indisponible.':'Obligation form unavailable.', 'Contribuable et type obligatoires.':'Taxpayer and type are required.',
+    'Aucune obligation. Cliquez sur « Nouvelle obligation » pour démarrer le suivi.':'No obligation. Click “New obligation” to start tracking.',
+    'Aucun résultat pour ces filtres.':'No result for these filters.', 'Joindre justificatif':'Attach document',
+    'Renouveler la déclaration':'Renew declaration', 'Supprimer définitivement':'Delete permanently',
+    'Ouvrir vérification':'Open verification', 'Éditer le lien':'Edit link',
+    'Créez d\'abord une obligation pour ce contribuable.':'Create an obligation for this taxpayer first.',
+    'Aucun lien de vérification enregistré.':'No verification link saved.', 'Précisez l\'organisme :':'Specify the organization:',
+    'Le libellé est obligatoire.':'The label is required.', 'Retirer':'Remove', 'Retirer «':'Remove “',
+    'des types d\'obligations ?':'from obligation types?', 'Aucun type d\'obligation configuré.':'No obligation type configured.',
+    'n\'est pas en règle :':'is not compliant:', 'Tous les contribuables suivis sont en règle.':'All monitored taxpayers are compliant.',
+    'Voulez-vous vraiment vous déconnecter ?':'Do you really want to log out?', 'Vous êtes déconnecté':'You are logged out',
+    'Votre session FiscalTrack a été fermée en toute sécurité. Reconnectez-vous pour accéder à votre espace de travail.':'Your FiscalTrack session has been securely closed. Log in again to access your workspace.',
+    'Se reconnecter':'Log in again', 'Archiver ce document ?':'Archive this document?',
+    'Restaurer ce document dans la liste des documents ?':'Restore this document to the document list?',
+    'Supprimer définitivement ce document ? Cette action est irréversible.':'Permanently delete this document? This action cannot be undone.',
+    'Aucun fichier numérique n\'a été associé à ce document.':'No digital file is associated with this document.',
+    'Le nom du contribuable est obligatoire.':'The taxpayer name is required.', 'Le nom du document est obligatoire.':'The document name is required.',
+    'Veuillez sélectionner un fichier pour ce document.':'Please select a file for this document.', 'Sélectionnez un fichier.':'Select a file.',
+    'Le mot de passe est obligatoire pour créer un compte.':'A password is required to create an account.',
+    'Nom, prénom et email sont obligatoires.':'Last name, first name and email are required.',
+    'Supprimer ce contribuable du dossier ?':'Delete this taxpayer from the directory?',
+    'La bibliothèque Excel n\'a pas pu se charger (vérifiez votre connexion internet).':'The Excel library could not be loaded (check your internet connection).',
+    'Archiver ce document ?':'Archive this document?', 'Impossible de clôturer sans justificatif GED. Déposez d\'abord une pièce.':'Cannot close without a supporting document. Upload a document first.',
+    'Supprimer cette obligation de suivi ?':'Delete this tracking obligation?', 'Renouveler':'Renew',
+    'Erreur enregistrement':'Save error', 'Une erreur est survenue.':'An error occurred.',
+    'Retirer ce document des types d\'obligations ?':'Remove this document from obligation types?',
+    'Voulez-vous vraiment':'Do you really want to', 'Lien de vérification pour':'Verification link for',
+    'Aucun contribuable enregistré.':'No taxpayer registered.', '— Aucun contribuable enregistré —':'— No taxpayer registered —',
+    'La liaison':'The link', 'Le dépôt d\'une pièce clôture automatiquement l\'obligation.':'Uploading a document automatically closes the obligation.',
+    'Types d\'obligations':'Obligation types', 'Catalogue DGI / CNPS — périodicité et organisme par défaut pour le suivi fiscal.':'DGI / CNPS catalog — frequency and default organization for tax tracking.',
+    'Catalogue':'Catalog', 'Utilisé lors de la création d\'une obligation de suivi.':'Used when creating a tracking obligation.',
+    'Ajouter un type':'Add type', 'Ajouter un type d\'obligation':'Add an obligation type', 'Libellé':'Label',
+    'Périodicité':'Frequency', 'Libre':'Custom', 'Mensuelle':'Monthly', 'Trimestrielle':'Quarterly', 'Annuelle':'Annual',
+    'Créer et gérer les accès des membres du cabinet.':'Create and manage firm member access.', 'Rechercher un compte…':'Search accounts…',
+    'Profil mis à jour.':'Profile updated.', 'Mot de passe modifié.':'Password changed.', 'Renseignez tous les champs.':'Fill in all fields.',
+    'La confirmation ne correspond pas.':'The confirmation does not match.', 'Préférences d\'affichage et d\'alertes pour votre session FiscalTrack.':'Display and alert preferences for your FiscalTrack session.',
+    'Apparence':'Appearance', 'Appliquées immédiatement sur cet appareil.':'Applied immediately on this device.',
+    'Densité compacte des listes':'Compact list density', 'Réduit l\'espacement des tableaux de suivi.':'Reduces tracking table spacing.',
+    'Alertes fiscales':'Tax alerts', 'Rappels d\'échéances J−7 / jour J / retard.':'Deadline reminders D−7 / due date / overdue.',
+    'Badge notifications':'Notification badge', 'Prioriser les retards':'Prioritize overdue items',
+    'Voir les notifications':'View notifications', 'Compte connecté':'Connected account', 'Modifier mon profil':'Edit my profile',
+    'Informations personnelles et sécurité de votre compte FiscalTrack.':'Personal information and FiscalTrack account security.',
+    'Identité':'Identity', 'Sécurité':'Security', 'Visible par l\'équipe du cabinet selon vos droits.':'Visible to the firm team according to your permissions.',
+    'Nom complet':'Full name', 'Membre depuis':'Member since', 'Mot de passe actuel':'Current password',
+    'Nouveau mot de passe':'New password', 'Confirmer le nouveau mot de passe':'Confirm new password', 'Modifier le mot de passe':'Change password',
+    'JAN':'JAN', 'FÉV':'FEB', 'MAR':'MAR', 'AVR':'APR', 'MAI':'MAY', 'JUIN':'JUN', 'JUIL':'JUL', 'AOÛT':'AUG', 'SEP':'SEP', 'OCT':'OCT', 'NOV':'NOV', 'DÉC':'DEC',
+    'Janvier':'January', 'Février':'February', 'Mars':'March', 'Avril':'April', 'Mai':'May', 'Juin':'June', 'Juillet':'July', 'Août':'August', 'Septembre':'September', 'Octobre':'October', 'Novembre':'November', 'Décembre':'December',
+    'Lun':'Mon', 'Mar':'Tue', 'Mer':'Wed', 'Jeu':'Thu', 'Ven':'Fri', 'Sam':'Sat', 'Dim':'Sun'
+    ,'Avis d\'imposition':'Tax notice', 'Quittance':'Receipt', 'Reçue':'Receipt', 'Facture':'Invoice',
+    'Facture de vente':'Sales invoice', 'Facture d\'achat':'Purchase invoice',
+    'Attestation d\'immatriculation':'Registration certificate', 'Autres':'Other', 'ATMP':'ATMP', 'ACS':'ACS', 'ACF':'ACF',
+    'T1 (jan–mar)':'Q1 (Jan–Mar)', 'T2 (avr–juin)':'Q2 (Apr–Jun)', 'T3 (juil–sep)':'Q3 (Jul–Sep)', 'T4 (oct–déc)':'Q4 (Oct–Dec)',
+    'Annuel':'Annual', 'Janvier':'January', 'Février':'February', 'Mars':'March', 'Avril':'April', 'Juin':'June',
+    'Juillet':'July', 'Août':'August', 'Septembre':'September', 'Octobre':'October', 'Novembre':'November', 'Décembre':'December'
+    ,'Ex : SARL KOUAM & FILS':'e.g. KOUAM & FILS LLC', 'Ex : K&F':'e.g. K&F', 'M0123456789X':'M0123456789X',
+    'Ex : Commerce général':'e.g. General trading', 'Ex : DGI Centre 1':'e.g. Tax center 1', 'Ex : Douala':'e.g. Douala',
+    'Ex : Akwa':'e.g. Akwa', 'Ex : près du marché':'e.g. near the market', 'Ex : Quittance IGS T3':'e.g. IGS Q3 receipt',
+    'Ex : DGI Cameroun':'e.g. Cameroon tax authority', 'Ex : 150000':'e.g. 150000',
+    'Ex : Quittance IGS T1 2026 (si fichier joint)':'e.g. IGS Q1 2026 receipt (if file attached)',
+    'Ex : Quittance IGS T2 2026':'e.g. IGS Q2 2026 receipt', 'Précisez le type de document':'Specify the document type',
+    'Laissée vide = calcul auto selon périodicité.':'Leave blank to calculate automatically from frequency.',
+    'Si joint, le statut passe automatiquement à « Justificatif déposé ».':'When attached, the status automatically becomes “Document submitted”.',
+    'Le dépôt d\'une pièce clôture automatiquement l\'obligation.':'Uploading a document automatically closes the obligation.'
+  }
+};
+const originalTextNodes = new WeakMap();
+const originalAttributes = new WeakMap();
+let currentLanguage = 'fr';
+function translateValue(value, language){
+  const table = translations[language] || {};
+  if(table[value]) return table[value];
+  return Object.keys(table).sort((a,b)=>b.length-a.length).reduce((result, key)=>{
+    return result.split(key).join(table[key]);
+  }, value);
+}
+function translatePage(language){
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while(node = walker.nextNode()){
+    if(node.parentElement && !['SCRIPT','STYLE'].includes(node.parentElement.tagName)) textNodes.push(node);
+  }
+  textNodes.forEach(textNode=>{
+    if(!originalTextNodes.has(textNode)) originalTextNodes.set(textNode, textNode.nodeValue);
+    const original = originalTextNodes.get(textNode);
+    const clean = original.trim();
+    if(!clean) return;
+    const leading = original.match(/^\s*/)[0];
+    const trailing = original.match(/\s*$/)[0];
+    const nextValue = leading + translateValue(clean, language) + trailing;
+    if(textNode.nodeValue !== nextValue) textNode.nodeValue = nextValue;
+  });
+  document.querySelectorAll('input[placeholder], textarea[placeholder], [title], [aria-label]').forEach(element=>{
+    if(!originalAttributes.has(element)) originalAttributes.set(element, {});
+    const saved = originalAttributes.get(element);
+    ['placeholder','title','aria-label'].forEach(attribute=>{
+      if(!element.hasAttribute(attribute)) return;
+      if(!saved[attribute]) saved[attribute] = element.getAttribute(attribute);
+      const nextValue = translateValue(saved[attribute], language);
+      if(element.getAttribute(attribute) !== nextValue) element.setAttribute(attribute, nextValue);
+    });
+  });
+}
+function applyLanguage(language){
+  const normalized = language === 'en' ? 'en' : 'fr';
+  currentLanguage = normalized;
+  document.documentElement.lang = normalized;
+  const languageSelect = document.getElementById('languageSelect');
+  if(languageSelect) languageSelect.value = normalized;
+  try{ localStorage.setItem('fiscaltrack-language', normalized); }catch(e){}
+  translatePage(normalized);
+  if(typeof originalDocumentTitle !== 'undefined') document.title = translateValue(originalDocumentTitle, normalized);
+}
+const originalDocumentTitle = document.title;
+const nativeAlert = window.alert.bind(window);
+const nativeConfirm = window.confirm.bind(window);
+const nativePrompt = window.prompt.bind(window);
+function alert(message){ nativeAlert(translateValue(String(message), currentLanguage)); }
+function confirm(message){ return nativeConfirm(translateValue(String(message), currentLanguage)); }
+function prompt(message, value){ return nativePrompt(translateValue(String(message), currentLanguage), value); }
+const languageSelect = document.getElementById('languageSelect');
+let savedLanguage = 'fr';
+try{ savedLanguage = localStorage.getItem('fiscaltrack-language') || 'fr'; }catch(e){}
+applyLanguage(savedLanguage);
+if(languageSelect) languageSelect.addEventListener('change', ()=>applyLanguage(languageSelect.value));
+const translationObserver = new MutationObserver(()=>translatePage(document.documentElement.lang || 'fr'));
+translationObserver.observe(document.body, { childList:true, subtree:true });
 const darkModeBtnEl = document.getElementById('darkModeBtn');
 if(darkModeBtnEl) darkModeBtnEl.addEventListener('click', ()=>{
   applyDarkMode(!document.body.classList.contains('dark'));
@@ -1043,14 +1278,6 @@ document.addEventListener('click', ()=>{
   const userDropdown = document.getElementById('userDropdown');
   if(notifDropdown) notifDropdown.classList.remove('open');
   if(userDropdown) userDropdown.classList.remove('open');
-});
-
-const logoutBtn = document.getElementById('logoutBtn');
-if(logoutBtn) logoutBtn.addEventListener('click', ()=>{
-  const logoutForm = document.getElementById('logout-form');
-  if(confirm('Voulez-vous vraiment vous déconnecter ?')){
-    if(logoutForm) logoutForm.submit();
-  }
 });
 
 /* ================= RENDER: NOTIFICATIONS ================= */
@@ -1168,7 +1395,6 @@ function setText(id, val){
 function renderObligationKpis(){
   const open = obligations.filter(o=>o.statut!=='declare' && o.statut!=='justificatif_depose');
   setText('declKpiAttente', open.length);
-  setText('declKpiRetard', open.filter(o=>o.echeance_bucket==='retard' || o.statut_effectif==='penalite').length);
   setText('declKpiProches', open.filter(o=>o.echeance_bucket==='proche' || o.echeance_bucket==='aujourdhui').length);
   setText('declKpiSansPiece', open.filter(o=>!o.has_justificatif).length);
 }
@@ -1389,7 +1615,7 @@ function computeCellStatut(contribId, docTypeId){
   if(open.some(o=>o.statut_effectif==='penalite' || o.echeance_bucket==='retard')) return 'penalite';
   return 'non_declare';
 }
-function fmtFCFA(n){return n.toLocaleString('fr-FR')+' FCFA';}
+function fmtFCFA(n){return n.toLocaleString('fr-FR')+' '+(currentLanguage==='en'?'XAF':'FCFA');}
 function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
 
 /* ================= RENDER: CONTRIBUABLES (tableau du dossier) ================= */
@@ -1397,48 +1623,31 @@ function money(n){ return (n||0).toLocaleString('fr-FR'); }
 function d(v){ return v || '—'; }
 function renderContribuables(){
   if(!document.getElementById('contribTbody')) return;
-  const q = (document.getElementById('contribSearch').value||'').toLowerCase();
-  const cat = document.getElementById('contribFilterCat').value;
-  const regime = document.getElementById('contribFilterRegime').value;
+  const q = (document.getElementById('contribSearch')?.value||'').toLowerCase();
+  const niu = (document.getElementById('contribFilterNiu')?.value||'').toLowerCase();
+  const regime = document.getElementById('contribFilterRegime')?.value || '';
+  const standardRegimes = ['Réel','Simplifié','Classe','Classe 1','Classe 2','Classe 3','Classe 4','Classe 5','Classe 6','Classe 7','Classe 8','Classe 9','IGS Classe','NON PROFESSIONNEL'];
   const rows = contribuables.filter(c=>
-  ((c.nom||'').toLowerCase().includes(q) || (c.niu||'').toLowerCase().includes(q)) &&
-    (!cat || c.cat===cat) && (!regime || c.regime===regime)
+    [c.nomRaisonSociale,c.prenomSigle,c.niu,c.activitePrincipale,c.regime,c.centreRattachement,c.ville,c.quartier,c.lieuxDit]
+      .some(value=>String(value||'').toLowerCase().includes(q)) &&
+    String(c.niu||'').toLowerCase().includes(niu) &&
+    (!regime || (regime === 'Autre' ? !standardRegimes.includes(c.regime) : c.regime===regime))
   );
   document.getElementById('contribCount').textContent = rows.length+' résultat(s) sur '+contribuables.length;
   document.getElementById('contribTbody').innerHTML = rows.length ? rows.map(c=>{
     const idx = contribuables.indexOf(c);
     return `
     <tr>
-      <td class="name-cell sticky-col">${c.nom}</td>
-      <td class="mono">${c.niu}</td>
-      <td>${c.regime} · ${c.cat}</td>
-      <td class="mono">${c.pass || '—'}</td>
-      <td class="mono">${money(c.montant)}</td>
-      <td class="mono">${money(c.t1)}</td>
-      <td class="mono">${money(c.t2)}</td>
-      <td class="mono">${money(c.t3)}</td>
-      <td class="mono">${money(c.t4)}</td>
-      <td class="mono">${money(c.tdl)}</td>
-      <td class="mono">${money(c.impots)}</td>
-      <td class="mono">${money(c.loyer)}</td>
-      <td class="mono">${money(c.bail)}</td>
-      <td class="mono">${money(c.precompte)}</td>
-      <td class="mono">${money(c.timbre)}</td>
-      <td class="mono">${money(c.fraisPaiement)}</td>
-      <td class="mono">${money(c.fsPaye)}</td>
-      <td class="mono">${money(c.fsNonPaye)}</td>
-      <td>${d(c.aiIgs)}</td>
-      <td>${d(c.aiBail)}</td>
-      <td>${d(c.aiPrecompte)}</td>
-      <td>${d(c.qIgs)}</td>
-      <td>${d(c.qBail)}</td>
-      <td>${d(c.qPrecompte)}</td>
-      <td>${d(c.acfIgs)}</td>
-      <td>${d(c.acfBail)}</td>
-      <td>${d(c.acfPrecompte)}</td>
-      <td>${d(c.lieu)}</td>
-      <td class="mono">${d(c.tel)}</td>
-      <td class="sticky-col print-hide" style="left:auto;right:0;box-shadow:-2px 0 4px rgba(16,29,71,.06);">
+      <td class="name-cell">${d(c.nomRaisonSociale)}</td>
+      <td>${d(c.prenomSigle)}</td>
+      <td class="mono">${d(c.niu)}</td>
+      <td>${d(c.activitePrincipale)}</td>
+      <td>${d(c.regime)}</td>
+      <td>${d(c.centreRattachement)}</td>
+      <td>${d(c.ville)}</td>
+      <td>${d(c.quartier)}</td>
+      <td>${d(c.lieuxDit)}</td>
+      <td class="print-hide">
         <div class="row-actions">
           <button class="mini-btn" title="Consulter" onclick="consultContribuable(${idx})"><svg><use href="#i-eye"/></svg></button>
           <button class="mini-btn" title="Modifier" onclick="editContribuable(${idx})"><svg><use href="#i-edit"/></svg></button>
@@ -1446,7 +1655,7 @@ function renderContribuables(){
         </div>
       </td>
     </tr>`;
-  }).join('') : `<tr><td colspan="30" class="empty">Aucun contribuable ne correspond à votre recherche. Cliquez sur « Ajouter un contribuable » pour commencer.</td></tr>`;
+  }).join('') : `<tr><td colspan="10" class="empty">Aucun contribuable ne correspond à votre recherche. Cliquez sur « Ajouter un contribuable » pour commencer.</td></tr>`;
 }
 async function deleteContribuable(i){
   if(!confirm('Supprimer ce contribuable du dossier ?')) return;
@@ -1458,41 +1667,24 @@ async function deleteContribuable(i){
   }catch(e){ alert(e.message); }
 }
 function resetContribuables(){
-  document.getElementById('contribSearch').value='';
-  document.getElementById('contribFilterCat').selectedIndex=0;
-  document.getElementById('contribFilterRegime').selectedIndex=0;
+  const search = document.getElementById('contribSearch');
+  const niu = document.getElementById('contribFilterNiu');
+  const regime = document.getElementById('contribFilterRegime');
+  if(search) search.value='';
+  if(niu) niu.value='';
+  if(regime) regime.selectedIndex=0;
   renderContribuables();
 }
 
-/* ---- export du dossier (PDF / Excel) ---- */
-function getVisibleContribuables(){
-  const q = (document.getElementById('contribSearch').value||'').toLowerCase();
-  const cat = document.getElementById('contribFilterCat').value;
-  const regime = document.getElementById('contribFilterRegime').value;
-  return contribuables.filter(c=>
-    (c.nom.toLowerCase().includes(q) || c.niu.toLowerCase().includes(q)) &&
-    (!cat || c.cat===cat) && (!regime || c.regime===regime)
-  );
-}
+/* ---- Export du répertoire contribuables ---- */
 function contribExportHeader(){
-  return ['Contribuable','NIU','Régime et classe','Mot de passe','Montant payé',
-    `IGS ${dossier.annee} T1`,`IGS ${dossier.annee} T2`,`IGS ${dossier.annee} T3`,`IGS ${dossier.annee} T4`,`IGS ${dossier.annee} TDL`,
-    'Impôts payé','Loyer','Bail','Précompte','Timbre','Frais de paiement',
-    'Frais de suivi - Payé','Frais de suivi - Non payé',
-    "Avis d'imposition - IGS","Avis d'imposition - Bail","Avis d'imposition - Précompte",
-    'Quittance - IGS','Quittance - Bail','Quittance - Précompte',
-    'ACF - IGS','ACF - Bail','ACF - Précompte','Lieu','Téléphone'];
+  return ['Nom/Raison sociale','Prénom/Sigle','NIU','Activité principale','Régime',
+    'Centre de rattachement','Ville','Quartier','Lieux-dit'];
 }
 function contribExportRows(){
   return contribuables.map(c=>[
-    c.nom, c.niu, `${c.regime} · ${c.cat}`, c.pass||'••••••', c.montant||0,
-    c.t1||0, c.t2||0, c.t3||0, c.t4||0, c.tdl||0,
-    c.impots||0, c.loyer||0, c.bail||0, c.precompte||0, c.timbre||0, c.fraisPaiement||0,
-    c.fsPaye||0, c.fsNonPaye||0,
-    c.aiIgs||'—', c.aiBail||'—', c.aiPrecompte||'—',
-    c.qIgs||'—', c.qBail||'—', c.qPrecompte||'—',
-    c.acfIgs||'—', c.acfBail||'—', c.acfPrecompte||'—',
-    c.lieu||'—', c.tel||'—'
+    c.nomRaisonSociale||c.nom||'—', c.prenomSigle||'—', c.niu||'—', c.activitePrincipale||'—',
+    c.regime||'—', c.centreRattachement||'—', c.ville||'—', c.quartier||'—', c.lieuxDit||'—'
   ]);
 }
 function exportContribuablesExcel(){
@@ -1500,38 +1692,24 @@ function exportContribuablesExcel(){
   const header = contribExportHeader();
   const rows = contribExportRows();
   if(!rows.length){ alert('Aucun contribuable à exporter.'); return; }
-  const titleRow = [`SUIVI DES DOSSIERS : ${dossier.nom.toUpperCase()} ${dossier.annee}`];
+  const titleRow = ['Répertoire des contribuables'];
   const ws = XLSX.utils.aoa_to_sheet([titleRow, [], header, ...rows]);
   ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:header.length-1} }];
   ws['!cols'] = header.map(h=>({ wch: Math.max(10, Math.min(24, h.length+4)) }));
   ws['!rows'] = [{ hpt:22 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Contribuables');
-  XLSX.writeFile(wb, `Suivi_${dossier.nom.replace(/\s+/g,'_')}_${dossier.annee}.xlsx`);
-}
-function exportContribuablesPDF(){
-  if(!contribuables.length){ alert('Aucun contribuable à exporter.'); return; }
-  const prevSearch = document.getElementById('contribSearch').value;
-  const prevCat = document.getElementById('contribFilterCat').value;
-  const prevRegime = document.getElementById('contribFilterRegime').value;
-  resetContribuables(); // affiche temporairement la totalité du tableau pour l'impression
-  document.body.classList.add('print-contribuables');
-  const restore = ()=>{
-    document.body.classList.remove('print-contribuables');
-    document.getElementById('contribSearch').value = prevSearch;
-    document.getElementById('contribFilterCat').value = prevCat;
-    document.getElementById('contribFilterRegime').value = prevRegime;
-    renderContribuables();
-  };
-  window.addEventListener('afterprint', restore, { once:true });
-  setTimeout(()=>{ window.print(); }, 50);
-  setTimeout(restore, 4000); // filet de sécurité si 'afterprint' ne se déclenche pas
+  XLSX.writeFile(wb, 'Contribuables.xlsx');
 }
 ['contribSearch'].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener('input', renderContribuables);
 });
-['contribFilterCat','contribFilterRegime'].forEach(id=>{
+['contribFilterNiu'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(el) el.addEventListener('input', renderContribuables);
+});
+['contribFilterRegime'].forEach(id=>{
   const el = document.getElementById(id);
   if(el) el.addEventListener('change', renderContribuables);
 });
@@ -2298,56 +2476,25 @@ async function reloadUsers(){
 
 /* ---- Contribuables : ajout / modification / consultation ---- */
 function fillContribForm(c){
-  const fraisPaiement = c.fraisPaiement ?? c.frais_paiement ?? '';
-  const fsPaye = c.fsPaye ?? c.fs_paye ?? '';
-  const fsNonPaye = c.fsNonPaye ?? c.fs_non_paye ?? '';
-  const aiIgs = c.aiIgs ?? c.ai_igs ?? '';
-  const aiBail = c.aiBail ?? c.ai_bail ?? '';
-  const aiPrecompte = c.aiPrecompte ?? c.ai_precompte ?? '';
-  const qIgs = c.qIgs ?? c.q_igs ?? '';
-  const qBail = c.qBail ?? c.q_bail ?? '';
-  const qPrecompte = c.qPrecompte ?? c.q_precompte ?? '';
-  const acfIgs = c.acfIgs ?? c.acf_igs ?? '';
-  const acfBail = c.acfBail ?? c.acf_bail ?? '';
-  const acfPrecompte = c.acfPrecompte ?? c.acf_precompte ?? '';
-
-  document.getElementById('f-contrib-nom').value = c.nom||'';
-  document.getElementById('f-contrib-niu').value = c.niu==='—'?'':(c.niu||'');
-  document.getElementById('f-contrib-pass').value = c.pass==='—'?'':(c.pass||'');
-  setSelectValueOrAutre('f-contrib-regime', c.regime||'Réel');
-  setSelectValueOrAutre('f-contrib-cat', c.cat||'Petite entreprise');
-  document.getElementById('f-contrib-lieu').value = c.lieu==='—'?'':(c.lieu||'');
-  document.getElementById('f-contrib-tel').value = c.tel==='—'?'':(c.tel||'');
-  document.getElementById('f-contrib-montant').value = c.montant||'';
-  document.getElementById('f-contrib-impots').value = c.impots||'';
-  document.getElementById('f-contrib-loyer').value = c.loyer||'';
-  document.getElementById('f-contrib-bail').value = c.bail||'';
-  document.getElementById('f-contrib-precompte').value = c.precompte||'';
-  document.getElementById('f-contrib-timbre').value = c.timbre||'';
-  document.getElementById('f-contrib-fraispaiement').value = fraisPaiement;
-  document.getElementById('f-contrib-t1').value = c.t1||'';
-  document.getElementById('f-contrib-t2').value = c.t2||'';
-  document.getElementById('f-contrib-t3').value = c.t3||'';
-  document.getElementById('f-contrib-t4').value = c.t4||'';
-  document.getElementById('f-contrib-tdl').value = c.tdl||'';
-  document.getElementById('f-contrib-fspaye').value = fsPaye;
-  document.getElementById('f-contrib-fsnonpaye').value = fsNonPaye;
-  document.getElementById('f-contrib-aiigs').value = aiIgs;
-  document.getElementById('f-contrib-aibail').value = aiBail;
-  document.getElementById('f-contrib-aiprecompte').value = aiPrecompte;
-  document.getElementById('f-contrib-qigs').value = qIgs;
-  document.getElementById('f-contrib-qbail').value = qBail;
-  document.getElementById('f-contrib-qprecompte').value = qPrecompte;
-  document.getElementById('f-contrib-acfigs').value = acfIgs;
-  document.getElementById('f-contrib-acfbail').value = acfBail;
-  document.getElementById('f-contrib-acfprecompte').value = acfPrecompte;
+  const fields = {
+    'f-contrib-nom': c.nomRaisonSociale || c.nom || '', 'f-contrib-prenom': c.prenomSigle || '',
+    'f-contrib-niu': c.niu || '', 'f-contrib-activite': c.activitePrincipale || '',
+    'f-contrib-centre': c.centreRattachement || '',
+    'f-contrib-ville': c.ville || '', 'f-contrib-quartier': c.quartier || '',
+    'f-contrib-lieux-dit': c.lieuxDit || ''
+  };
+  Object.entries(fields).forEach(([id, value])=>{
+    const input = document.getElementById(id);
+    if(input) input.value = value === '—' ? '' : value;
+  });
+  setSelectValueOrAutre('f-contrib-regime', c.regime || '');
 }
 function clearContribForm(){
   document.querySelectorAll('#ov-modalContribuable input').forEach(inp=>inp.value='');
-  document.getElementById('f-contrib-regime').selectedIndex=0;
-  document.getElementById('f-contrib-cat').selectedIndex=0;
-  document.getElementById('f-contrib-regime-autre').style.display='none';
-  document.getElementById('f-contrib-cat-autre').style.display='none';
+  const regime = document.getElementById('f-contrib-regime');
+  const autre = document.getElementById('f-contrib-regime-autre');
+  if(regime) regime.selectedIndex = 0;
+  if(autre) autre.style.display = 'none';
 }
 function setContribFormDisabled(disabled){
   document.querySelectorAll('#ov-modalContribuable input, #ov-modalContribuable select').forEach(el=>el.disabled=disabled);
@@ -2389,7 +2536,9 @@ function openAddDocument(){
   document.getElementById('f-doc-contrib').selectedIndex=0;
   document.getElementById('f-doc-fournisseur').value='';
   document.getElementById('f-doc-montant').value='';
-  document.getElementById('f-doc-file').value='';
+  const fileInput = document.getElementById('f-doc-file');
+  fileInput.value='';
+  fileInput.required = true;
   document.getElementById('modalDocumentTitle').textContent = 'Ajouter un document';
   document.getElementById('modalDocumentSaveBtn').textContent = 'Enregistrer';
   document.getElementById('doc-file-hint').style.display = 'none';
@@ -2404,7 +2553,9 @@ function editDocument(i){
   document.getElementById('f-doc-contrib').value = doc.contribuable_id || '';
   document.getElementById('f-doc-fournisseur').value = doc.fournisseur==='—' ? '' : doc.fournisseur;
   document.getElementById('f-doc-montant').value = doc.montant || '';
-  document.getElementById('f-doc-file').value = '';
+  const fileInput = document.getElementById('f-doc-file');
+  fileInput.value = '';
+  fileInput.required = false;
   document.getElementById('modalDocumentTitle').textContent = 'Modifier le document';
   document.getElementById('modalDocumentSaveBtn').textContent = 'Enregistrer les modifications';
   document.getElementById('doc-file-hint').style.display = 'block';
@@ -2452,9 +2603,6 @@ function openModal(id){
       ? contribuables.map(c=>`<option value="${c.id}">${c.nom}</option>`).join('')
       : `<option value="" disabled selected>— Aucun contribuable enregistré —</option>`;
   }
-  if(id==='modalContribuable'){
-    document.getElementById('f-igs-subtitle').textContent = `IGS ${dossier.annee || ''} — Trimestres & TDL`;
-  }
   document.getElementById('ov-'+id).classList.add('open');
 }
 function closeModal(id){ document.getElementById('ov-'+id).classList.remove('open'); }
@@ -2468,16 +2616,16 @@ function setupAutresOption(selectId){
   const autreInput = document.getElementById(selectId+'-autre');
   if(!sel || !autreInput) return;
   sel.addEventListener('change', ()=>{
-    autreInput.style.display = sel.value==='Autres' ? 'block' : 'none';
-    if(sel.value==='Autres') autreInput.focus();
+    autreInput.style.display = ['Autre','Autres'].includes(sel.value) ? 'block' : 'none';
+    if(['Autre','Autres'].includes(sel.value)) autreInput.focus();
   });
 }
 function getSelectValue(selectId){
   const sel = document.getElementById(selectId);
   if(!sel) return '';
-  if(sel.value === 'Autres'){
+  if(['Autre','Autres'].includes(sel.value)){
     const autreInput = document.getElementById(selectId+'-autre');
-    return (autreInput && autreInput.value.trim()) || 'Autres';
+    return (autreInput && autreInput.value.trim()) || 'Autre';
   }
   return sel.value;
 }
@@ -2492,12 +2640,12 @@ function setSelectValueOrAutre(selectId, value){
     sel.value = value;
     if(autreInput) autreInput.style.display='none';
   } else {
-    sel.value = 'Autres';
+    const customOption = Array.from(sel.options).find(option=>['Autre','Autres'].includes(option.value));
+    sel.value = customOption ? customOption.value : value;
     if(autreInput){ autreInput.value = value||''; autreInput.style.display='block'; }
   }
 }
-['f-contrib-regime','f-contrib-cat'].forEach(setupAutresOption);
-
+setupAutresOption('f-contrib-regime');
 /* ---- Le libellé du montant s'adapte au type de document choisi ---- */
 function onDocTypeChange(){
   const sel = document.getElementById('f-doc-type');
@@ -2509,7 +2657,10 @@ function onDocTypeChange(){
 function normalizeContrib(d){
   if(d && d.contribuable) d = d.contribuable;   // ✅ déballe si la réponse est enveloppée
   return {
-    id: d.id, nom: d.nom, niu: d.niu, regime: d.regime, cat: d.cat, statut: d.statut || 'active', pass: d.pass,
+    id: d.id, nom: d.nom_raison_sociale || d.nom, nomRaisonSociale: d.nom_raison_sociale || d.nom,
+    prenomSigle: d.prenom_sigle, niu: d.niu, activitePrincipale: d.activite_principale,
+    regime: d.regime, centreRattachement: d.centre_rattachement, ville: d.ville,
+    quartier: d.quartier, lieuxDit: d.lieux_dit, cat: d.cat, statut: d.statut || 'active', pass: d.pass,
     montant: d.montant, t1: d.t1, t2: d.t2, t3: d.t3, t4: d.t4, tdl: d.tdl,
     impots: d.impots, loyer: d.loyer, bail: d.bail, precompte: d.precompte, timbre: d.timbre,
     fraisPaiement: d.frais_paiement, fsPaye: d.fs_paye, fsNonPaye: d.fs_non_paye,
@@ -2525,20 +2676,11 @@ async function submitContribuable(){
   const nom = fv('f-contrib-nom').trim();
   if(!nom){ alert('Le nom du contribuable est obligatoire.'); return; }
   const record = {
-    nom, niu: fv('f-contrib-niu')||'—',
-    regime: getSelectValue('f-contrib-regime'), cat: getSelectValue('f-contrib-cat'),
+    nom_raison_sociale: nom, nom, prenom_sigle: fv('f-contrib-prenom'), niu: fv('f-contrib-niu'),
+    activite_principale: fv('f-contrib-activite'), regime: fv('f-contrib-regime'),
+    centre_rattachement: fv('f-contrib-centre'), ville: fv('f-contrib-ville'),
+    quartier: fv('f-contrib-quartier'), lieux_dit: fv('f-contrib-lieux-dit'),
     statut: (editContribIndex!==null ? contribuables[editContribIndex].statut : 'active') || 'active',
-    pass: fv('f-contrib-pass') || '—',
-    montant: fn('f-contrib-montant'),
-    t1: fn('f-contrib-t1'), t2: fn('f-contrib-t2'), t3: fn('f-contrib-t3'), t4: fn('f-contrib-t4'), tdl: fn('f-contrib-tdl'),
-    impots: fn('f-contrib-impots'), loyer: fn('f-contrib-loyer'), bail: fn('f-contrib-bail'),
-    precompte: fn('f-contrib-precompte'), timbre: fn('f-contrib-timbre'),
-    frais_paiement: fn('f-contrib-fraispaiement'),
-    fs_paye: fn('f-contrib-fspaye'), fs_non_paye: fn('f-contrib-fsnonpaye'),
-    ai_igs: fv('f-contrib-aiigs')||null, ai_bail: fv('f-contrib-aibail')||null, ai_precompte: fv('f-contrib-aiprecompte')||null,
-    q_igs: fv('f-contrib-qigs')||null, q_bail: fv('f-contrib-qbail')||null, q_precompte: fv('f-contrib-qprecompte')||null,
-    acf_igs: fv('f-contrib-acfigs')||null, acf_bail: fv('f-contrib-acfbail')||null, acf_precompte: fv('f-contrib-acfprecompte')||null,
-    lieu: fv('f-contrib-lieu')||'—', tel: fv('f-contrib-tel')||'—'
   };
   const isEdit = editContribIndex !== null;
   try{
@@ -2568,6 +2710,11 @@ async function submitDocument(){
   const fileInput = document.getElementById('f-doc-file');
   const file = fileInput.files[0];
   const isEdit = editDocIndex !== null;
+  if(!isEdit && !file){
+    fileInput.reportValidity();
+    if(!fileInput.validationMessage) alert('Veuillez sélectionner un fichier pour ce document.');
+    return;
+  }
  
   // FormData est obligatoire pour transmettre un fichier (pas de JSON possible ici)
   const fd = new FormData();
