@@ -7,17 +7,20 @@ use App\Contribuable;
 use App\TrackedDocType;
 use App\Obligation;
 use App\Services\FiscalSuiviService;
+use App\Services\CloudFileStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
     protected $suivi;
+    protected $files;
 
-    public function __construct(FiscalSuiviService $suivi)
+    public function __construct(FiscalSuiviService $suivi, CloudFileStorage $files)
     {
         $this->middleware('auth');
         $this->suivi = $suivi;
+        $this->files = $files;
     }
 
     public function page()
@@ -40,28 +43,36 @@ class DocumentController extends Controller
 
     public function store(Request $request)
     {
-        $data = $this->validated($request);
+        $data = $this->validated($request, true);
+        $files = $request->file('fichiers', []);
+        if (!$files && $request->hasFile('fichier')) $files = [$request->file('fichier')];
+        $documents = [];
+        foreach ($files as $file) {
+            $doc = new Document();
+            $doc->fill($this->fields($data));
+            $this->attachFile($file, $doc);
+            $doc->nom = count($files) > 1 ? pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) : $data['nom'];
+            $doc->save();
+            $this->lierObligation($doc, $data);
+            $documents[] = $doc->load('contribuable')->toFront();
+        }
 
-        $doc = new Document();
-        $doc->fill($this->fields($data));
-        $this->attachFile($request, $doc);
-        $doc->save();
-        $this->lierObligation($doc, $data);
-
-        return response()->json(['document' => $doc->load('contribuable')->toFront()]);
+        return response()->json(['success' => true, 'message' => count($documents).' document(s) enregistré(s) avec succès.', 'documents' => $documents, 'document' => $documents[0] ?? null], 201);
     }
 
     public function update(Request $request, $id)
     {
         $doc = Document::findOrFail($id);
-        $data = $this->validated($request);
+        $data = $this->validated($request, false);
 
         $doc->fill($this->fields($data));
-        $this->attachFile($request, $doc);
+        $replacementFiles = $request->file('fichiers', []);
+        $replacement = $replacementFiles[0] ?? $request->file('fichier');
+        if ($replacement) $this->attachFile($replacement, $doc);
         $doc->save();
         $this->lierObligation($doc, $data);
 
-        return response()->json(['document' => $doc->load('contribuable')->toFront()]);
+        return response()->json(['success' => true, 'message' => 'Document modifié avec succès.', 'document' => $doc->load('contribuable')->toFront()]);
     }
 
     public function archive($id)
@@ -70,7 +81,7 @@ class DocumentController extends Controller
         $doc->archived_at = now();
         $doc->save();
 
-        return response()->json(['document' => $doc->load('contribuable')->toFront()]);
+        return response()->json(['success' => true, 'message' => 'Document archivé avec succès.', 'document' => $doc->load('contribuable')->toFront()]);
     }
 
     public function restore($id)
@@ -79,19 +90,17 @@ class DocumentController extends Controller
         $doc->archived_at = null;
         $doc->save();
 
-        return response()->json(['document' => $doc->load('contribuable')->toFront()]);
+        return response()->json(['success' => true, 'message' => 'Document restauré avec succès.', 'document' => $doc->load('contribuable')->toFront()]);
     }
 
     public function destroy($id)
     {
         $doc = Document::findOrFail($id);
 
-        if ($doc->fichier_path && Storage::disk('public')->exists($doc->fichier_path)) {
-            Storage::disk('public')->delete($doc->fichier_path);
-        }
+        $this->files->delete($doc->fichier_path, $doc->fichier_disk);
         $doc->delete();
 
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'message' => 'Document supprimé avec succès.']);
     }
 
     public function fichier($id)
@@ -108,7 +117,7 @@ class DocumentController extends Controller
         );
     }
 
-    private function validated(Request $request)
+    private function validated(Request $request, bool $creating)
     {
         $rules = [
             'nom'             => 'required|string|max:255',
@@ -117,7 +126,9 @@ class DocumentController extends Controller
             'montant'         => 'nullable|integer|min:0',
             'contribuable_id' => 'nullable|integer|exists:contribuables,id',
             'obligation_id'   => 'nullable|integer|exists:obligations,id',
-            'fichier'         => ($request->isMethod('post') ? 'required' : 'nullable').'|file|max:10240|mimes:pdf,png,jpg,jpeg',
+            'fichier'         => 'nullable|file|max:10240|mimes:pdf,png,jpg,jpeg',
+            'fichiers'        => ($creating ? 'required|array|min:1' : 'nullable|array').'|max:20',
+            'fichiers.*'      => 'file|max:10240|mimes:pdf,png,jpg,jpeg',
         ];
 
         return $request->validate($rules);
@@ -135,18 +146,13 @@ class DocumentController extends Controller
         ];
     }
 
-    private function attachFile(Request $request, Document $doc)
+    private function attachFile($file, Document $doc)
     {
-        if (! $request->hasFile('fichier')) {
-            return;
-        }
-
-        if ($doc->fichier_path && Storage::disk('public')->exists($doc->fichier_path)) {
-            Storage::disk('public')->delete($doc->fichier_path);
-        }
-
-        $file = $request->file('fichier');
-        $doc->fichier_path = $file->store('documents', 'public');
+        $this->files->delete($doc->fichier_path, $doc->fichier_disk);
+        $stored = $this->files->put($file);
+        $doc->fichier_path = $stored['path'];
+        $doc->fichier_url = $stored['url'];
+        $doc->fichier_disk = $stored['disk'];
         $doc->fichier_nom  = $file->getClientOriginalName();
         $doc->fichier_mime = $file->getClientMimeType();
     }

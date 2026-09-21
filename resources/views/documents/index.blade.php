@@ -41,8 +41,8 @@
         <div class="field"><label id="f-doc-montant-label">Montant (FCFA)</label><input id="f-doc-montant" type="number" placeholder="0"></div>
       </div>
       <div class="field">
-        <label>Fichier numérique (PDF, PNG)</label>
-        <input type="file" id="f-doc-file" required>
+        <label>Fichiers numériques (PDF, PNG)</label>
+        <input type="file" id="f-doc-file" accept=".pdf,.png,.jpg,.jpeg" multiple required>
         <p id="doc-file-hint" style="display:none;font-size:11px;color:var(--text-400);margin-top:5px;">Laissez ce champ vide pour conserver le fichier déjà enregistré.</p>
       </div>
     </div>

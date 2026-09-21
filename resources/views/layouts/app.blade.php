@@ -620,6 +620,9 @@ th.sticky-col{z-index:5;}
 .modal-subtitle{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--blue-600);padding-top:12px;margin-top:2px;border-top:1px solid var(--line);}
 .modal-subtitle:first-child{border-top:none;padding-top:0;margin-top:0;}
 .modal-foot{display:flex;justify-content:flex-end;gap:9px;padding:16px 20px;border-top:1px solid var(--line);}
+.success-toast{position:fixed;right:24px;bottom:24px;z-index:300;display:none;align-items:center;gap:9px;max-width:360px;padding:12px 16px;border:1px solid #a8e2c4;border-radius:10px;background:var(--green-bg);color:var(--green);box-shadow:var(--shadow-md);font-size:12.5px;font-weight:600;}
+.success-toast.open{display:flex;animation:toast-in .2s ease-out;}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 
 /* logout overlay */
 .lock-overlay{position:fixed;inset:0;background:linear-gradient(190deg,var(--navy-900),var(--indigo-600));display:none;align-items:center;justify-content:center;z-index:200;color:#fff;text-align:center;}
@@ -811,6 +814,7 @@ th.sticky-col{z-index:5;}
     <a class="btn btn-primary" style="justify-content:center;width:100%;text-decoration:none;" href="{{ route('login') }}">Se reconnecter</a>
   </div>
 </div>
+<div class="success-toast" id="successToast" role="status" aria-live="polite"><svg style="width:16px;height:16px;flex:none;"><use href="#i-check"/></svg><span id="successToastText"></span></div>
 
 
 <script>
@@ -1900,9 +1904,7 @@ async function submitObligation(){
   const docNom = document.getElementById('f-obl-doc-nom').value;
   if(docNom) fd.append('document_nom', docNom);
   const fileInput = document.getElementById('f-obl-fichier');
-  if(fileInput && fileInput.files && fileInput.files[0]){
-    fd.append('fichier', fileInput.files[0]);
-  }
+  if(fileInput && fileInput.files) Array.from(fileInput.files).forEach(file=>fd.append('fichiers[]', file));
   try{
     const res = await fetch('/obligations', {
       method:'POST',
@@ -1914,10 +1916,12 @@ async function submitObligation(){
       throw new Error(data.message || (data.errors && Object.values(data.errors).flat().join('\n')) || 'Erreur enregistrement');
     }
     obligations.push(data.obligation);
-    if(data.document) documents.unshift(data.document);
+    if(data.documents) documents.unshift(...data.documents);
+    else if(data.document) documents.unshift(data.document);
     applySuiviKpis(data.kpis);
     syncMatrixFromObligations();
     closeModal('modalObligation');
+    showSuccess(data.message || 'Obligation enregistrée avec succès.');
     refreshSuiviUI();
   }catch(e){ alert(e.message); }
 }
@@ -2058,10 +2062,10 @@ function openJustificatifModal(id){
 async function submitObligationJustificatif(){
   const id = document.getElementById('f-obl-justif-id').value;
   const fileInput = document.getElementById('f-obl-justif-file');
-  if(!fileInput.files || !fileInput.files[0]){ alert('Sélectionnez un fichier.'); return; }
+  if(!fileInput.files || !fileInput.files.length){ alert('Sélectionnez au moins un fichier.'); return; }
   const fd = new FormData();
   fd.append('nom', document.getElementById('f-obl-justif-nom').value || '');
-  fd.append('fichier', fileInput.files[0]);
+  Array.from(fileInput.files).forEach(file=>fd.append('fichiers[]', file));
   try{
     const res = await fetch(`/obligations/${id}/justificatif`, {
       method:'POST',
@@ -2072,10 +2076,12 @@ async function submitObligationJustificatif(){
     if(!res.ok) throw new Error(data.message || (data.errors && Object.values(data.errors).flat().join('\n')) || 'Erreur dépôt');
     const idx = obligations.findIndex(x=>Number(x.id)===Number(id));
     if(idx>=0) obligations[idx] = data.obligation;
-    if(data.document) documents.unshift(data.document);
+    if(data.documents) documents.unshift(...data.documents);
+    else if(data.document) documents.unshift(data.document);
     applySuiviKpis(data.kpis);
     syncMatrixFromObligations();
     closeModal('modalOblJustificatif');
+    showSuccess(data.message || 'Justificatif(s) enregistré(s) avec succès.');
     refreshSuiviUI();
   }catch(e){ alert(e.message); }
 }
@@ -2407,7 +2413,19 @@ async function apiUsers(url, method, body){
       || 'Une erreur est survenue.';
     throw new Error(msg);
   }
+  if(data.message) showSuccess(data.message);
   return data;
+}
+
+let successToastTimer = null;
+function showSuccess(message){
+  const toast = document.getElementById('successToast');
+  const text = document.getElementById('successToastText');
+  if(!toast || !text) return;
+  text.textContent = message;
+  toast.classList.add('open');
+  clearTimeout(successToastTimer);
+  successToastTimer = setTimeout(()=>toast.classList.remove('open'), 3500);
 }
 
 function renderUsers(){
@@ -2708,9 +2726,9 @@ async function submitDocument(){
   const nom = document.getElementById('f-doc-nom').value.trim();
   if(!nom){ alert('Le nom du document est obligatoire.'); return; }
   const fileInput = document.getElementById('f-doc-file');
-  const file = fileInput.files[0];
+  const files = Array.from(fileInput.files || []);
   const isEdit = editDocIndex !== null;
-  if(!isEdit && !file){
+  if(!isEdit && !files.length){
     fileInput.reportValidity();
     if(!fileInput.validationMessage) alert('Veuillez sélectionner un fichier pour ce document.');
     return;
@@ -2723,7 +2741,7 @@ async function submitDocument(){
   fd.append('fournisseur', document.getElementById('f-doc-fournisseur').value || '');
   fd.append('montant', Number(document.getElementById('f-doc-montant').value) || 0);
   fd.append('contribuable_id', document.getElementById('f-doc-contrib').value || '');
-  if(file) fd.append('fichier', file);
+  files.forEach(file=>fd.append('fichiers[]', file));
   if(isEdit) fd.append('_method', 'PUT'); // Laravel a besoin de ce champ avec FormData
  
   const url = isEdit ? `/documents/${documents[editDocIndex].id}` : '/documents';
@@ -2746,6 +2764,7 @@ async function submitDocument(){
     }
  
     if(isEdit){ documents[editDocIndex] = data.document; }
+    else if(data.documents){ documents.unshift(...data.documents); }
     else { documents.unshift(data.document); }
  
     autoLinkTrackedDoc(data.document);
@@ -2766,6 +2785,7 @@ async function submitDocument(){
     document.getElementById('f-doc-montant').value='';
     fileInput.value='';
     document.getElementById('doc-file-hint').style.display='none';
+    showSuccess(data.message || (isEdit ? 'Document modifié avec succès.' : 'Document(s) enregistré(s) avec succès.'));
   }catch(e){ alert(e.message); }
 }
 async function submitUser(){
