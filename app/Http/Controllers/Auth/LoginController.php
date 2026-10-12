@@ -44,7 +44,10 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(RouteServiceProvider::HOME);
+        return redirect()->intended(RouteServiceProvider::HOME)->with('app_notice', [
+            'type' => 'success',
+            'message' => 'Accès autorisé',
+        ]);
     }
 
     public function logout(Request $request)

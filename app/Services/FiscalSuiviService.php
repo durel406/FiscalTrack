@@ -87,6 +87,15 @@ class FiscalSuiviService
             ->get();
 
         foreach ($obligations as $o) {
+            $contribuable = $o->contribuable;
+            $typeDoc = $o->trackedDocType;
+            $contribNom = $contribuable && ! empty($contribuable->nom)
+                ? $contribuable->nom
+                : 'Contribuable inconnu';
+            $typeNom = $typeDoc && ! empty($typeDoc->nom)
+                ? $typeDoc->nom
+                : 'Type inconnu';
+
             $diff = $today->diffInDays($o->date_limite->copy()->startOfDay(), false);
             if ($diff > 7) {
                 continue;
@@ -97,8 +106,8 @@ class FiscalSuiviService
                 $title = 'Échéance proche';
                 $msg = sprintf(
                     '%s — %s (%s %d) arrive à échéance le %s (dans %d jour%s).',
-                    $o->contribuable->nom,
-                    $o->trackedDocType->nom,
+                    $contribNom,
+                    $typeNom,
                     $o->periode,
                     $o->annee,
                     $o->date_limite->format('d/m/Y'),
@@ -110,8 +119,8 @@ class FiscalSuiviService
                 $title = "Échéance aujourd'hui";
                 $msg = sprintf(
                     '%s — %s (%s %d) arrive à échéance aujourd\'hui.',
-                    $o->contribuable->nom,
-                    $o->trackedDocType->nom,
+                    $contribNom,
+                    $typeNom,
                     $o->periode,
                     $o->annee
                 );
@@ -121,8 +130,8 @@ class FiscalSuiviService
                 $title = 'Échéance dépassée';
                 $msg = sprintf(
                     '%s — %s (%s %d) en retard depuis %d jour%s (échéance du %s).',
-                    $o->contribuable->nom,
-                    $o->trackedDocType->nom,
+                    $contribNom,
+                    $typeNom,
                     $o->periode,
                     $o->annee,
                     $late,
