@@ -1051,6 +1051,30 @@ const translations = {
   en: {
     'Accès autorisé':'Access granted', 'Confirmation':'Confirmation', 'Saisie requise':'Input required',
     'Confirmer':'Confirm', 'Valider':'Submit',
+    'La session a expiré ou le jeton de sécurité est invalide. Rechargez la page et reconnectez-vous.':'Your session expired or the security token is invalid. Reload the page and sign in again.',
+    'Contribuable modifié avec succès.':'Taxpayer updated successfully.',
+    'Contribuable enregistré avec succès.':'Taxpayer saved successfully.',
+    'Contribuable supprimé avec succès.':'Taxpayer deleted successfully.',
+    'Document modifié avec succès.':'Document updated successfully.',
+    'Document enregistré avec succès.':'Document saved successfully.',
+    'Document archivé avec succès.':'Document archived successfully.',
+    'Document restauré avec succès.':'Document restored successfully.',
+    'Document supprimé définitivement avec succès.':'Document permanently deleted successfully.',
+    'Déclaration enregistrée avec succès.':'Declaration saved successfully.',
+    'Statut de l\'obligation mis à jour avec succès.':'Obligation status updated successfully.',
+    'Justificatif enregistré avec succès.':'Supporting document saved successfully.',
+    'Obligation supprimée avec succès.':'Obligation deleted successfully.',
+    'Déclaration renouvelée avec succès.':'Declaration renewed successfully.',
+    'Type d\'obligation modifié avec succès.':'Obligation type updated successfully.',
+    'Type d\'obligation ajouté avec succès.':'Obligation type added successfully.',
+    'Type d\'obligation supprimé avec succès.':'Obligation type deleted successfully.',
+    'Lien de vérification enregistré avec succès.':'Verification link saved successfully.',
+    'Organisme mis à jour avec succès.':'Organization updated successfully.',
+    'Statut de déclaration enregistré avec succès.':'Declaration status saved successfully.',
+    'Compte utilisateur modifié avec succès.':'User account updated successfully.',
+    'Compte utilisateur créé avec succès.':'User account created successfully.',
+    'Statut du compte mis à jour avec succès.':'Account status updated successfully.',
+    'Compte utilisateur supprimé avec succès.':'User account deleted successfully.',
     'Général':'General', 'Tableau de bord':'Dashboard', 'Accueil':'Home',
     'Gestion':'Management', 'Contribuables':'Taxpayers', 'Documents (GED)':'Documents (DMS)',
     'Archives':'Archives', 'Déclaration':'Declarations', 'Obligations':'Obligations',
@@ -1254,6 +1278,15 @@ function applyLanguage(language){
 }
 const originalDocumentTitle = document.title;
 let toastTimer = null;
+function apiErrorMessage(response, data, fallback){
+  if(response.status === 419){
+    return 'La session a expiré ou le jeton de sécurité est invalide. Rechargez la page et reconnectez-vous.';
+  }
+  return data.message
+    || (data.errors && Object.values(data.errors).flat().join('\n'))
+    || fallback
+    || 'Une erreur est survenue.';
+}
 function showAppToast(message, type){
   const toast = document.getElementById('appToast');
   const text = document.getElementById('appToastMessage');
@@ -1774,6 +1807,7 @@ async function deleteContribuable(i){
     contribuables.splice(i,1);
     renderContribuables();
     renderKPIs();
+    showAppToast('Contribuable supprimé avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 function resetContribuables(){
@@ -1871,6 +1905,7 @@ async function archiveDocument(i){
     renderDocuments();
     renderArchives();
     renderKPIs();
+    showAppToast('Document archivé avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 let ficheDocIndex = null;
@@ -1957,6 +1992,7 @@ async function restoreDocument(i){
     renderArchives();
     renderDocuments();
     renderKPIs();
+    showAppToast('Document restauré avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
  
@@ -1966,6 +2002,7 @@ async function deleteArchivedDocument(i){
     await apiUsers(`/documents/${archivedDocuments[i].id}`, 'DELETE');
     archivedDocuments.splice(i,1);
     renderArchives();
+    showAppToast('Document supprimé définitivement avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 const archiveSearchInput = document.getElementById('archiveSearch');
@@ -2021,7 +2058,7 @@ async function submitObligation(){
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok){
-      throw new Error(data.message || (data.errors && Object.values(data.errors).flat().join('\n')) || 'Erreur enregistrement');
+      throw new Error(apiErrorMessage(res, data, 'Erreur enregistrement'));
     }
     obligations.push(data.obligation);
     if(data.document) documents.unshift(data.document);
@@ -2029,6 +2066,7 @@ async function submitObligation(){
     syncMatrixFromObligations();
     closeModal('modalObligation');
     refreshSuiviUI();
+    showAppToast('Déclaration enregistrée avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 function filteredObligations(){
@@ -2153,6 +2191,7 @@ async function changeObligationStatut(id, statut){
     applySuiviKpis(data.kpis);
     syncMatrixFromObligations();
     refreshSuiviUI();
+    showAppToast('Statut de l\'obligation mis à jour avec succès.', 'success');
   }catch(e){ alert(e.message); renderObligationsList(); }
 }
 function openJustificatifModal(id){
@@ -2178,8 +2217,8 @@ async function submitObligationJustificatif(){
       headers:{ 'X-CSRF-TOKEN': csrfToken, 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest' },
       body: fd
     });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.message || (data.errors && Object.values(data.errors).flat().join('\n')) || 'Erreur dépôt');
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(apiErrorMessage(res, data, 'Erreur dépôt'));
     const idx = obligations.findIndex(x=>Number(x.id)===Number(id));
     if(idx>=0) obligations[idx] = data.obligation;
     if(data.document) documents.unshift(data.document);
@@ -2187,6 +2226,7 @@ async function submitObligationJustificatif(){
     syncMatrixFromObligations();
     closeModal('modalOblJustificatif');
     refreshSuiviUI();
+    showAppToast('Justificatif enregistré avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 async function deleteObligation(id){
@@ -2197,6 +2237,7 @@ async function deleteObligation(id){
     applySuiviKpis(data.kpis);
     syncMatrixFromObligations();
     refreshSuiviUI();
+    showAppToast('Obligation supprimée avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 async function renewObligation(id){
@@ -2209,6 +2250,7 @@ async function renewObligation(id){
     applySuiviKpis(data.kpis);
     syncMatrixFromObligations();
     refreshSuiviUI();
+    showAppToast('Déclaration renouvelée avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 function refreshSuiviUI(){
@@ -2316,6 +2358,7 @@ async function editVerifLink(contribId){
       { lien_verification: url.trim() || null });
     c.lien_verification = data.contribuable.lien_verification;
     renderDeclarations();
+    showAppToast('Lien de vérification enregistré avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 function openVerifLink(contribId){
@@ -2335,6 +2378,7 @@ async function updateContribOrganisme(contribId, value){
     const data = await apiUsers(`/contribuables/${contribId}/organisme`, 'PATCH', { organisme: finalValue || null });
     c.organisme = data.contribuable.organisme;
     renderDeclarations();
+    showAppToast('Organisme mis à jour avec succès.', 'success');
   }catch(e){ alert(e.message); renderDeclarations(); }
 }
 async function updateCellStatut(contribId, docTypeId, value){
@@ -2350,6 +2394,7 @@ async function updateCellStatut(contribId, docTypeId, value){
     }
     syncMatrixFromObligations();
     refreshSuiviUI();
+    showAppToast('Statut de déclaration enregistré avec succès.', 'success');
   }catch(e){ alert(e.message); renderDeclarations(); }
 }
 async function addTrackedDocType(){ openTrackedTypeModal(); }
@@ -2376,6 +2421,7 @@ async function submitTrackedType(){
     periodicite: document.getElementById('f-tracked-periodicite').value || 'libre',
     organisme_defaut: document.getElementById('f-tracked-organisme').value || null,
   };
+  const isEdit = Boolean(editTrackedTypeId);
   try{
     let data;
     if(editTrackedTypeId){
@@ -2401,6 +2447,7 @@ async function submitTrackedType(){
     closeModal('modalTrackedType');
     editTrackedTypeId = null;
     renderTrackedDocList(); renderDeclarations(); renderObligationsList();
+    showAppToast(isEdit ? 'Type d\'obligation modifié avec succès.' : 'Type d\'obligation ajouté avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 async function removeTrackedDocType(id){
@@ -2414,6 +2461,7 @@ async function removeTrackedDocType(id){
     syncMatrixFromObligations();
     refreshSuiviUI();
     renderTrackedDocList();
+    showAppToast('Type d\'obligation supprimé avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 function renderTrackedDocList(){
@@ -2512,10 +2560,7 @@ async function apiUsers(url, method, body){
   const res = await fetch(url, opts);
   const data = await res.json().catch(()=>({}));
   if(!res.ok){
-    const msg = data.message
-      || (data.errors && Object.values(data.errors).flat().join('\n'))
-      || 'Une erreur est survenue.';
-    throw new Error(msg);
+    throw new Error(apiErrorMessage(res, data));
   }
   return data;
 }
@@ -2552,6 +2597,7 @@ async function toggleUserStatut(id){
     const idx = users.findIndex(x=>Number(x.id)===Number(id));
     if(idx >= 0) users[idx] = data.user;
     renderUsers();
+    showAppToast('Statut du compte mis à jour avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 async function deleteUser(id){
@@ -2562,6 +2608,7 @@ async function deleteUser(id){
     await apiUsers(`/users/${id}`, 'DELETE');
     users = users.filter(x=>Number(x.id)!==Number(id));
     renderUsers();
+    showAppToast('Compte utilisateur supprimé avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 const userSearchInput = document.getElementById('userSearch');
@@ -2812,6 +2859,7 @@ async function submitContribuable(){
     }
     editContribIndex = null;
     clearContribForm();
+    showAppToast(isEdit ? 'Contribuable modifié avec succès.' : 'Contribuable enregistré avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 async function submitDocument(){
@@ -2861,9 +2909,7 @@ async function submitDocument(){
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok){
-      throw new Error(data.message
-        || (data.errors && Object.values(data.errors).flat().join('\n'))
-        || 'Une erreur est survenue.');
+      throw new Error(apiErrorMessage(res, data));
     }
  
     if(isEdit){ documents[editDocIndex] = data.document; }
@@ -2887,6 +2933,7 @@ async function submitDocument(){
     document.getElementById('f-doc-montant').value='';
     fileInput.value='';
     document.getElementById('doc-file-hint').style.display='none';
+    showAppToast(isEdit ? 'Document modifié avec succès.' : 'Document enregistré avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 async function submitUser(){
@@ -2894,6 +2941,7 @@ async function submitUser(){
   const prenom = document.getElementById('f-user-prenom').value.trim();
   const email = document.getElementById('f-user-email').value.trim();
   const password = document.getElementById('f-user-pass').value;
+  const isEdit = editUserId !== null;
   if(!nom || !prenom || !email){ alert('Nom, prénom et email sont obligatoires.'); return; }
   if(editUserId === null && !password){ alert('Le mot de passe est obligatoire pour créer un compte.'); return; }
 
@@ -2917,6 +2965,7 @@ async function submitUser(){
     closeModal('modalUser');
     resetUsers();
     editUserId = null;
+    showAppToast(isEdit ? 'Compte utilisateur modifié avec succès.' : 'Compte utilisateur créé avec succès.', 'success');
   }catch(e){ alert(e.message); }
 }
 
