@@ -95,7 +95,7 @@ body{transition:background-color .2s ease, color .2s ease;}
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;}
 body{
-  font-family:'Segoe UI',Tahoma,sans-serif;
+   font-family:'Poppins', sans-serif;
   background:var(--bg);
   color:var(--text-900);
   -webkit-font-smoothing:antialiased;
@@ -198,6 +198,7 @@ input,select{font-family:inherit;}
   background:var(--surface);border-bottom:1px solid var(--line);
   display:flex;align-items:center;gap:16px;
   padding:0 24px;position:relative;z-index:15;
+   font-family:'Poppins', sans-serif;
 }
 .menu-toggle{display:none;width:34px;height:34px;border-radius:4px;align-items:center;justify-content:center;color:var(--text-600);}
 .menu-toggle:hover{background:var(--bg);}

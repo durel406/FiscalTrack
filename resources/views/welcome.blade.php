@@ -146,11 +146,11 @@
     <section class="hero">
         <div>
             <div class="hero-box">
-                <h1>Simplifiez le suivi de toutes vos déclarations sur FiscalTrack</h1>
+                <h1>Simplifiez le suivi de toutes vos échéances sur FiscalTrack</h1>
             </div>
             <p class="hero-text">
                 FiscalTrack est une application web conçue pour aider les cabinets comptables et
-                les entreprises à gérer toutes leurs déclarations, les documents et les échéances.
+                les entreprises à gérer toutes leurs échéances des déclarations fiscales et sociales ainsi que leurs documents et les contribuables associés.
             </p>
         </div>
 
@@ -184,7 +184,7 @@
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <h3>Gestion des contribuables</h3>
-            <p>Centralisez les informations de vos clients et suivez leurs obligations fiscales.</p>
+            <p>Centralisez les informations de vos clients et suivez leurs obligations fiscales et sociales.</p>
         </div>
     </section>
 
